@@ -165,10 +165,10 @@ Handle g_hTimerHud;
 
 enum eRocketSteal
 {
-    stoleRocket =  false,
-    rocketsStolen
+	stoleRocket = false, 
+	rocketsStolen
 };
- 
+
 int bStealArray[MAXPLAYERS + 1][eRocketSteal];
 
 // -----<<< Configuration >>>-----
@@ -542,11 +542,11 @@ public Action OnRoundStart(Handle hEvent, char[] strEventName, bool bDontBroadca
 	if (GetConVarBool(g_hCvarStealPrevention))
 	{
 		for (int i = 0; i <= MaxClients; i++)
-   		{
-    	    bStealArray[i][stoleRocket] = false;
-    	    bStealArray[i][rocketsStolen] = 0;
-    	}
-   	}
+		{
+			bStealArray[i][stoleRocket] = false;
+			bStealArray[i][rocketsStolen] = 0;
+		}
+	}
 	
 	if (g_bMusic[Music_RoundStart])
 	{
@@ -713,6 +713,12 @@ public Action OnPlayerSpawn(Handle hEvent, char[] strEventName, bool bDontBroadc
 		TF2_RespawnPlayer(iClient);
 	}
 	
+	for (int i = MaxClients; i; --i)
+	{
+		if (IsClientInGame(i) && IsPlayerAlive(i))
+			SetEntPropEnt(i, Prop_Data, "m_hActiveWeapon", GetPlayerWeaponSlot(i, TFWeaponSlot_Primary));
+	}
+	
 	if (!GetConVarBool(g_hCvarPyroVisionEnabled))
 	{
 		return;
@@ -743,7 +749,7 @@ public Action OnPlayerDeath(Handle hEvent, char[] strEventName, bool bDontBroadc
 	{
 		return;
 	}
-	int iAttacker = GetClientOfUserId(GetEventInt(hEvent, "userid"));
+	int iAttacker = GetClientOfUserId(GetEventInt(hEvent, "attacker"));
 	int iVictim = GetClientOfUserId(GetEventInt(hEvent, "userid"));
 	
 	if (GetConVarBool(g_hCvarAirBlastCommandEnabled))
@@ -776,7 +782,14 @@ public Action OnPlayerDeath(Handle hEvent, char[] strEventName, bool bDontBroadc
 			{
 				if (GetConVarBool(g_hCvarDeflectCountAnnounce))
 				{
-					CPrintToChatAll("\x05%N\01 died to a rocket travelling \x05%i\x01 mph with \x05%i\x01 deflections!", g_iLastDeadClient, g_iRocketSpeed, iDeflections);
+					if (iTarget == iVictim) 
+					{
+						CPrintToChatAll("\x05%N\01 died to their rocket travelling \x05%i\x01 mph with \x05%i\x01 deflections!", g_iLastDeadClient, g_iRocketSpeed, iDeflections);
+					} 
+					else 
+					{
+						CPrintToChatAll("\x05%N\x01 died to \x05%.15N's\x01 rocket travelling \x05%i\x01 mph with \x05%i\x01 deflections!", g_iLastDeadClient, iTarget, g_iRocketSpeed, iDeflections);
+					}
 				}
 				else
 				{
@@ -1226,6 +1239,8 @@ void HomingRocketThink(int iIndex)
 		SetEntDataFloat(iEntity, FindSendPropInfo("CTFProjectile_Rocket", "m_iDeflected") + 4, CalculateRocketDamage(iClass, fModifier), true);
 		if (TestFlags(iFlags, RocketFlag_ElevateOnDeflect))g_iRocketFlags[iIndex] |= RocketFlag_Elevating;
 		EmitRocketSound(RocketSound_Alert, iClass, iEntity, iTarget, iFlags);
+		//Send out temp entity to target
+		//SendTempEnt(iTarget, "superrare_greenenergy", iEntity, _, _, true);
 		
 		// Execute appropiate command
 		if (TestFlags(iFlags, RocketFlag_OnDeflectCmd))
@@ -2369,14 +2384,14 @@ public void OnEntityCreated(int entity, const char[] classname)
 	if (!StrEqual(classname, "tf_projectile_rocket", false))
 		return;
 	
-	if (StrEqual(classname, "tf_projectile_rocket") || StrEqual(classname, "tf_projectile_sentryrocket")) 
-	{ 
-    	if (IsValidEntity(entity)) 
-    	{ 
-      		SetEntPropEnt(entity, Prop_Send, "m_hOriginalLauncher", entity); 
-      		SetEntPropEnt(entity, Prop_Send, "m_hLauncher", entity); 
-    	}	 
-  	} 
+	if (StrEqual(classname, "tf_projectile_rocket") || StrEqual(classname, "tf_projectile_sentryrocket"))
+	{
+		if (IsValidEntity(entity))
+		{
+			SetEntPropEnt(entity, Prop_Send, "m_hOriginalLauncher", entity);
+			SetEntPropEnt(entity, Prop_Send, "m_hLauncher", entity);
+		}
+	}
 	
 	g_nBounces[entity] = 0;
 	SDKHook(entity, SDKHook_StartTouch, OnStartTouch);
@@ -2482,27 +2497,27 @@ public Action TauntCheck(int victim, int &attacker, int &inflictor, float &damag
 
 void checkStolenRocket(int clientId, int entId)
 {
- 
-    if (EntRefToEntIndex(g_iRocketTarget[entId]) != clientId && !bStealArray[clientId][stoleRocket])
-    {
-        bStealArray[clientId][stoleRocket] = true;
-        if (bStealArray[clientId][rocketsStolen] < GetConVarInt(g_hCvarStealPreventionNumber))
-        {
-            bStealArray[clientId][rocketsStolen]++;
-            CreateTimer(0.1, tStealTimer, GetClientUserId(clientId), TIMER_FLAG_NO_MAPCHANGE);
-            SlapPlayer(clientId, 0, true);
-            PrintToChat(clientId, "\x03Do not steal rockets. [Warning %i/%i]", bStealArray[clientId][rocketsStolen], GetConVarInt(g_hCvarStealPreventionNumber));
-        } else {
-            ForcePlayerSuicide(clientId);
-            PrintToChat(clientId, "\x03You have been slain for stealing rockets.");
-        }
-    }
+	
+	if (EntRefToEntIndex(g_iRocketTarget[entId]) != clientId && !bStealArray[clientId][stoleRocket])
+	{
+		bStealArray[clientId][stoleRocket] = true;
+		if (bStealArray[clientId][rocketsStolen] < GetConVarInt(g_hCvarStealPreventionNumber))
+		{
+			bStealArray[clientId][rocketsStolen]++;
+			CreateTimer(0.1, tStealTimer, GetClientUserId(clientId), TIMER_FLAG_NO_MAPCHANGE);
+			SlapPlayer(clientId, 0, true);
+			PrintToChat(clientId, "\x03Do not steal rockets. [Warning %i/%i]", bStealArray[clientId][rocketsStolen], GetConVarInt(g_hCvarStealPreventionNumber));
+		} else {
+			ForcePlayerSuicide(clientId);
+			PrintToChat(clientId, "\x03You have been slain for stealing rockets.");
+		}
+	}
 }
 
 public Action tStealTimer(Handle hTimer, int iClientUid)
 {
-    int iClient = GetClientOfUserId(iClientUid);
-    bStealArray[iClient][stoleRocket] = false;
+	int iClient = GetClientOfUserId(iClientUid);
+	bStealArray[iClient][stoleRocket] = false;
 }
 
 /*void StolenRocket(int iClient, int iTarget)
