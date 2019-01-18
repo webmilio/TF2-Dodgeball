@@ -25,9 +25,9 @@ A wiki will be setup detailing the config for the plugin.
 
 # Credits 
 
-Damizean - Original Plugin
-ReflexPoison - Speedometer & Announce mph on death
-ClassicGuzzi - Obeserver Point
-BloodyNightmare & Mitchell - For original version of AirblastPrevention
-Powerlord - Original Pyrovision for all plugin
+- Damizean - Original Plugin
+- ReflexPoison - Speedometer & Announce mph on death
+- ClassicGuzzi - Obeserver Point
+- BloodyNightmare & Mitchell - For original version of AirblastPrevention
+- Powerlord - Original Pyrovision for all plugin
 
