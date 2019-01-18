@@ -474,7 +474,7 @@ public int DodgeballAdminRocketCount_Handler(Menu menu, MenuAction action, int p
 					int iSpawnerClassRed = g_iSpawnPointsRedClass[g_iCurrentRedSpawn];
 					g_iSpawnersMaxRockets[iSpawnerClassRed] = 1;
 					
-					CPrintToChatAll("{yellow}Savita Gaming {white}| %N changed the max rockets to 1.", param1);
+					CPrintToChatAll("%N changed the max rockets to 1.", param1);
 				}
 				case 1:
 				{
@@ -484,7 +484,7 @@ public int DodgeballAdminRocketCount_Handler(Menu menu, MenuAction action, int p
 					int iSpawnerClassRed = g_iSpawnPointsRedClass[g_iCurrentRedSpawn];
 					g_iSpawnersMaxRockets[iSpawnerClassRed] = 2;
 					
-					CPrintToChatAll("{yellow}Savita Gaming {white}| %N changed the max rockets to 2.", param1);
+					CPrintToChatAll("%N changed the max rockets to 2.", param1);
 				}
 				case 2:
 				{
@@ -494,7 +494,7 @@ public int DodgeballAdminRocketCount_Handler(Menu menu, MenuAction action, int p
 					int iSpawnerClassRed = g_iSpawnPointsRedClass[g_iCurrentRedSpawn];
 					g_iSpawnersMaxRockets[iSpawnerClassRed] = 3;
 					
-					CPrintToChatAll("{yellow}Savita Gaming {white}| %N changed the max rockets to 3.", param1);
+					CPrintToChatAll("%N changed the max rockets to 3.", param1);
 				}
 				case 3:
 				{
@@ -504,7 +504,7 @@ public int DodgeballAdminRocketCount_Handler(Menu menu, MenuAction action, int p
 					int iSpawnerClassRed = g_iSpawnPointsRedClass[g_iCurrentRedSpawn];
 					g_iSpawnersMaxRockets[iSpawnerClassRed] = 4;
 					
-					CPrintToChatAll("{yellow}Savita Gaming {white}| %N changed the max rockets to 4.", param1);
+					CPrintToChatAll("%N changed the max rockets to 4.", param1);
 				}
 				case 4:
 				{
@@ -514,7 +514,7 @@ public int DodgeballAdminRocketCount_Handler(Menu menu, MenuAction action, int p
 					int iSpawnerClassRed = g_iSpawnPointsRedClass[g_iCurrentRedSpawn];
 					g_iSpawnersMaxRockets[iSpawnerClassRed] = 5;
 					
-					CPrintToChatAll("{yellow}Savita Gaming {white}| %N changed the max rockets to 5.", param1);
+					CPrintToChatAll("%N changed the max rockets to 5.", param1);
 				}
 			}
 		}
@@ -581,7 +581,7 @@ public int DodgeballAdminRocketSpeed_Handler(Menu menu, MenuAction action, int p
 					g_fRocketSpeed[iClassBlu] = kvSpeed / 2;
 					g_fRocketClassSpeedIncrement[iClassBlu] = kvSpeedIncrement / 2;
 					
-					CPrintToChatAll("{yellow}Savita Gaming {white}| %N changed the rocket speed to 25% (Slow)", param1);
+					CPrintToChatAll("%N changed the rocket speed to 25% (Slow)", param1);
 				}
 				case 1:
 				{
@@ -596,7 +596,7 @@ public int DodgeballAdminRocketSpeed_Handler(Menu menu, MenuAction action, int p
 					g_fRocketSpeed[iClassBlu] = kvSpeed;
 					g_fRocketClassSpeedIncrement[iClassBlu] = kvSpeedIncrement;
 					
-					CPrintToChatAll("{yellow}Savita Gaming {white}| %N changed the rocket speed to 50% (Normal)", param1);
+					CPrintToChatAll("%N changed the rocket speed to 50% (Normal)", param1);
 				}
 				case 2:
 				{
@@ -611,7 +611,7 @@ public int DodgeballAdminRocketSpeed_Handler(Menu menu, MenuAction action, int p
 					g_fRocketSpeed[iClassBlu] = kvSpeed * 2;
 					g_fRocketClassSpeedIncrement[iClassBlu] = kvSpeedIncrement * 2;
 					
-					CPrintToChatAll("{yellow}Savita Gaming {white}| %N changed the rocket speed to 75% (Fast)", param1);
+					CPrintToChatAll("%N changed the rocket speed to 75% (Fast)", param1);
 				}
 				case 3:
 				{
@@ -626,7 +626,7 @@ public int DodgeballAdminRocketSpeed_Handler(Menu menu, MenuAction action, int p
 					g_fRocketSpeed[iClassBlu] = kvSpeed * 3;
 					g_fRocketClassSpeedIncrement[iClassBlu] = kvSpeedIncrement * 3;
 					
-					CPrintToChatAll("{yellow}Savita Gaming {white}| %N changed the rocket speed to 100% (Silly Fast)", param1);
+					CPrintToChatAll("%N changed the rocket speed to 100% (Silly Fast)", param1);
 				}
 			}
 		}
