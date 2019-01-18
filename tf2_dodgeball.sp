@@ -56,7 +56,6 @@ bool Airblast[MAXPLAYERS + 1] =  { true, ... };
 
 // Particlessss
 int g_RocketParticle[MAXPLAYERS + 1];
-bool g_RocketChasing[MAXPLAYERS + 1];
 
 // ---- Flags and types constants --------------------------------------------------
 enum Musics
@@ -184,6 +183,7 @@ char g_strWebPlayerUrl[256];
 // -----<<< Structures >>>-----
 // Rockets
 bool g_bRocketIsValid[MAX_ROCKETS];
+bool g_bRocketIsNuke[MAX_ROCKETS];
 int g_iRocketEntity[MAX_ROCKETS];
 int g_iRocketTarget[MAX_ROCKETS];
 int g_iRocketSpawner[MAX_ROCKETS];
@@ -291,7 +291,7 @@ public void OnPluginStart()
 	g_hCvarSpeedo = CreateConVar("tf_dodgeball_speedo", "1", "Enable HUD speedometer");
 	g_hCvarAnnounce = CreateConVar("tf_dodgeball_announce", "1", "Enable kill announces in chat");
 	g_hCvarPyroVisionEnabled = CreateConVar("tf_dodgeball_pyrovision", "1", "Enable pyrovision for everyone");
-	g_hMaxBouncesConVar = CreateConVar("tf_dodgeball_rbmax", "2", "Max number of times a rocket will bounce.", FCVAR_NONE, true, 0.0, false);
+	g_hMaxBouncesConVar = CreateConVar("tf_dodgeball_rbmax", "10000", "Max number of times a rocket will bounce.", FCVAR_NONE, true, 0.0, false);
 	g_hCvarAirBlastCommandEnabled = CreateConVar("tf_dodgeball_airblast", "1", "Enable if airblast is enabled or not");
 	g_hCvarDeflectCountAnnounce = CreateConVar("tf_dodgeball_count_deflect", "1", "Enable number of deflections in kill announce");
 	g_hCvarRedirectBeep = CreateConVar("tf_dodgeball_rdrbeep", "1", "Do redirects beep?");
@@ -697,11 +697,20 @@ void EnableDodgeBall()
 		ParseConfigurations();
 		ParseConfigurations(strMapFile);
 		
+		ServerCommand("tf_dodgeball_rbmax %f", GetConVarFloat(g_hMaxBouncesConVar));
+		
 		// Check if we have all the required information
-		if (g_iRocketClassCount == 0)SetFailState("No rocket class defined.");
-		if (g_iSpawnersCount == 0)SetFailState("No spawner class defined.");
-		if (g_iDefaultRedSpawner == -1)SetFailState("No spawner class definition for the Red spawners exists in the config file.");
-		if (g_iDefaultBluSpawner == -1)SetFailState("No spawner class definition for the Blu spawners exists in the config file.");
+		if (g_iRocketClassCount == 0)
+			SetFailState("No rocket class defined.");
+		
+		if (g_iSpawnersCount == 0)
+			SetFailState("No spawner class defined.");
+		
+		if (g_iDefaultRedSpawner == -1)
+			SetFailState("No spawner class definition for the Red spawners exists in the config file.");
+		
+		if (g_iDefaultBluSpawner == -1)
+			SetFailState("No spawner class definition for the Blu spawners exists in the config file.");
 		
 		// Hook events and info_target outputs.
 		HookEvent("object_deflected", Event_ObjectDeflected);
@@ -712,6 +721,8 @@ void EnableDodgeBall()
 		HookEvent("player_death", OnPlayerDeath, EventHookMode_Pre);
 		HookEvent("post_inventory_application", OnPlayerInventory, EventHookMode_Post);
 		HookEvent("teamplay_broadcast_audio", OnBroadcastAudio, EventHookMode_Pre);
+		
+		
 		
 		// Precache sounds
 		PrecacheSound(SOUND_DEFAULT_SPAWN, true);
@@ -1261,20 +1272,20 @@ public Action OnDodgeBallGameFrame(Handle hTimer, any Data)
 	}
 }
 
-public Action ShowToTarget(int iIndex, int iClient) 
+public Action ShowToTarget(int iIndex, int iClient)
 {
 	int iParticle = EntRefToEntIndex(g_RocketParticle[iIndex]);
 	int iTarget = EntRefToEntIndex(g_iRocketTarget[iIndex]);
 	
-	if (!IsValidEntity(iParticle)) 
+	if (!IsValidEntity(iParticle))
 		return Plugin_Handled;
-		
-	if (!IsValidClient(iTarget)) 
+	
+	if (!IsValidClient(iTarget))
 		return Plugin_Handled;
-		
-	if (iClient != iTarget) 
+	
+	if (iClient != iTarget)
 		return Plugin_Handled;
-		
+	
 	return Plugin_Continue;
 }
 
@@ -1371,6 +1382,7 @@ public void CreateRocket(int iSpawnerEntity, int iSpawnerClass, int iTeam)
 			g_iRocketCount++;
 			g_iRocketsFired++;
 			g_fNextSpawnTime = GetGameTime() + g_fSpawnersInterval[iSpawnerClass];
+			g_bRocketIsNuke[iIndex] = false;
 			
 			//AttachParticle(iEntity, "burningplayer_rainbow_glow");
 			AttachParticle(iEntity, "burningplayer_rainbow_glow_old");
@@ -1611,6 +1623,7 @@ void HomingRocketThink(int iIndex)
 		// If it's a nuke, beep every some time
 		if ((GetGameTime() - g_fRocketLastBeepTime[iIndex]) >= g_fRocketClassBeepInterval[iClass])
 		{
+			g_bRocketIsNuke[iIndex] = true;
 			EmitRocketSound(RocketSound_Beep, iClass, iEntity, iTarget, iFlags);
 			g_fRocketLastBeepTime[iIndex] = GetGameTime();
 		}
@@ -1831,7 +1844,7 @@ void PopulateSpawnPoints()
 		{
 			// Find most appropiate spawner class for this entity.
 			int iIndex = FindSpawnerByName(strName);
-			if (!IsValidRocket(iIndex))iIndex = g_iDefaultRedSpawner;
+			if (!IsValidRocket(iIndex)) iIndex = g_iDefaultRedSpawner;
 			
 			// Upload to point list
 			g_iSpawnPointsRedClass[g_iSpawnPointsRedCount] = iIndex;
@@ -1852,8 +1865,11 @@ void PopulateSpawnPoints()
 	}
 	
 	// Check if there exists spawn points
-	if (g_iSpawnPointsRedCount == 0)SetFailState("No RED spawn points found on this map.");
-	if (g_iSpawnPointsBluCount == 0)SetFailState("No BLU spawn points found on this map.");
+	if (g_iSpawnPointsRedCount == 0)
+		SetFailState("No RED spawn points found on this map.");
+	
+	if (g_iSpawnPointsBluCount == 0)
+		SetFailState("No BLU spawn points found on this map.");
 	
 	
 	//ObserverPoint
@@ -1922,9 +1938,9 @@ void RegisterCommands()
 public Action CmdResize(int iIndex)
 {
 	int iEntity = EntRefToEntIndex(g_iRocketEntity[iIndex]);
-	if (iEntity && IsValidEntity(iEntity))
+	if (iEntity && IsValidEntity(iEntity) && g_bRocketIsNuke[iEntity])
 	{
-		SetEntPropFloat(iEntity, Prop_Send, "m_flModelScale", (2.0));
+		SetEntPropFloat(iEntity, Prop_Send, "m_flModelScale", (4.0));
 	}
 }
 
@@ -2107,18 +2123,25 @@ bool ParseConfigurations(char strConfigFile[] = "general.cfg")
 	LogMessage("Executing configuration file %s", strPath);
 	if (FileExists(strPath, true))
 	{
-		Handle kvConfig = CreateKeyValues("TF2_Dodgeball");
-		if (FileToKeyValues(kvConfig, strPath) == false)SetFailState("Error while parsing the configuration file.");
-		KvGotoFirstSubKey(kvConfig);
+		KeyValues kvConfig = CreateKeyValues("TF2_Dodgeball");
+		
+		if (FileToKeyValues(kvConfig, strPath) == false)
+			SetFailState("Error while parsing the configuration file.");
+			
+		kvConfig.GotoFirstSubKey();
 		
 		// Parse the subsections
 		do
 		{
-			char strSection[64]; KvGetSectionName(kvConfig, strSection, sizeof(strSection));
+			char strSection[64]; 
+			KvGetSectionName(kvConfig, strSection, sizeof(strSection));
 			
-			if (StrEqual(strSection, "general"))ParseGeneral(kvConfig);
-			else if (StrEqual(strSection, "classes"))ParseClasses(kvConfig);
-			else if (StrEqual(strSection, "spawners"))ParseSpawners(kvConfig);
+			if (StrEqual(strSection, "general"))
+				ParseGeneral(kvConfig);
+			else if (StrEqual(strSection, "classes"))
+				ParseClasses(kvConfig);
+			else if (StrEqual(strSection, "spawners"))
+				ParseSpawners(kvConfig);
 		}
 		while (KvGotoNextKey(kvConfig));
 		
@@ -2214,9 +2237,9 @@ void ParseClasses(Handle kvConfig)
 		g_fRocketClassDamageIncrement[iIndex] = KvGetFloat(kvConfig, "damage increment");
 		g_fRocketClassCritChance[iIndex] = KvGetFloat(kvConfig, "critical chance");
 		g_fRocketClassSpeed[iIndex] = KvGetFloat(kvConfig, "speed");
-		g_fSavedSpeed = KvGetFloat(kvConfig, "speed");
+		g_fSavedSpeed = g_fRocketClassSpeed[iIndex];
 		g_fRocketClassSpeedIncrement[iIndex] = KvGetFloat(kvConfig, "speed increment");
-		g_fSavedSpeedIncrement = KvGetFloat(kvConfig, "speed increment");
+		g_fSavedSpeedIncrement = g_fRocketClassSpeedIncrement[iIndex];
 		g_fRocketClassTurnRate[iIndex] = KvGetFloat(kvConfig, "turn rate");
 		g_fRocketClassTurnRateIncrement[iIndex] = KvGetFloat(kvConfig, "turn rate increment");
 		g_fRocketClassElevationRate[iIndex] = KvGetFloat(kvConfig, "elevation rate");
@@ -2250,37 +2273,39 @@ void ParseClasses(Handle kvConfig)
 **
 ** Parses the spawn points classes data from the given configuration file.
 ** -------------------------------------------------------------------------- */
-void ParseSpawners(Handle kvConfig)
+void ParseSpawners(KeyValues kvConfig)
 {
-	char strBuffer[256];
-	KvGotoFirstSubKey(kvConfig);
-	
-	do
-	{
-		int iIndex = g_iSpawnersCount;
-		
-		// Basic parameters
-		KvGetSectionName(kvConfig, strBuffer, sizeof(strBuffer)); strcopy(g_strSpawnersName[iIndex], 32, strBuffer);
-		g_iSpawnersMaxRockets[iIndex] = KvGetNum(kvConfig, "max rockets", 1);
-		g_fSpawnersInterval[iIndex] = KvGetFloat(kvConfig, "interval", 1.0);
-		
-		// Chances table
-		g_hSpawnersChancesTable[iIndex] = CreateArray();
-		for (int iClassIndex = 0; iClassIndex < g_iRocketClassCount; iClassIndex++)
-		{
-			Format(strBuffer, sizeof(strBuffer), "%s%%", g_strRocketClassName[iClassIndex]);
-			PushArrayCell(g_hSpawnersChancesTable[iIndex], KvGetNum(kvConfig, strBuffer, 0));
-		}
-		
-		// Done.
-		SetTrieValue(g_hSpawnersTrie, g_strSpawnersName[iIndex], iIndex);
-		g_iSpawnersCount++;
-	}
-	while (KvGotoNextKey(kvConfig));
-	KvGoBack(kvConfig);
-	
-	GetTrieValue(g_hSpawnersTrie, "red", g_iDefaultRedSpawner);
-	GetTrieValue(g_hSpawnersTrie, "blu", g_iDefaultBluSpawner);
+    kvConfig.JumpToKey("spawners"); //jump to spawners section
+    char strBuffer[256];
+    kvConfig.GotoFirstSubKey(); //goto to first subkey of "spawners" section
+    
+    do
+    {
+        int iIndex = g_iSpawnersCount;
+
+        // Basic parameters
+        kvConfig.GetSectionName(strBuffer, sizeof(strBuffer)); //okay, here we got section name, as example, red
+        strcopy(g_strSpawnersName[iIndex], 32, strBuffer); //here we copied it to the g_strSpawnersName array
+        g_iSpawnersMaxRockets[iIndex] = kvConfig.GetNum("max rockets", 1); //get some values...
+        g_fSpawnersInterval[iIndex] = kvConfig.GetFloat("interval", 1.0);
+        
+        // Chances table
+        g_hSpawnersChancesTable[iIndex] = CreateArray(); //not interested in this
+        for (int iClassIndex = 0; iClassIndex < g_iRocketClassCount; iClassIndex++)
+        {
+            Format(strBuffer, sizeof(strBuffer), "%s%%", g_strRocketClassName[iClassIndex]);
+            PushArrayCell(g_hSpawnersChancesTable[iIndex], KvGetNum(kvConfig, strBuffer, 0));
+        }
+        
+        // Done.
+        SetTrieValue(g_hSpawnersTrie, g_strSpawnersName[iIndex], iIndex); //okay, push section name to g_hSpawnersTrie
+        g_iSpawnersCount++;
+    } while (kvConfig.GotoNextKey());
+    
+    kvConfig.Rewind(); //rewind
+    
+    GetTrieValue(g_hSpawnersTrie, "Red", g_iDefaultRedSpawner); //get value by section name, section name exists in the g_hSpawnersTrie, everything should work
+    GetTrieValue(g_hSpawnersTrie, "Blue", g_iDefaultBluSpawner);
 }
 
 /* ParseCommands()
@@ -2887,23 +2912,23 @@ void AttachParticle(int iEntity, char[] strParticleType)
 	}
 }
 
-stock void CreateTempParticle(char[] particle, int entity = -1, float origin[3] = NULL_VECTOR, float angles[3] = {0.0, 0.0, 0.0}, bool resetparticles = false)
+stock void CreateTempParticle(char[] particle, int entity = -1, float origin[3] = NULL_VECTOR, float angles[3] =  { 0.0, 0.0, 0.0 }, bool resetparticles = false)
 {
 	int tblidx = FindStringTable("ParticleEffectNames");
-
+	
 	char tmp[256];
 	int stridx = INVALID_STRING_INDEX;
-
+	
 	for (int i = 0; i < GetStringTableNumStrings(tblidx); i++)
 	{
 		ReadStringTable(tblidx, i, tmp, sizeof(tmp));
-		if(StrEqual(tmp, particle, false))
+		if (StrEqual(tmp, particle, false))
 		{
 			stridx = i;
 			break;
 		}
 	}
-
+	
 	TE_Start("TFParticleEffect");
 	TE_WriteFloat("m_vecOrigin[0]", origin[0]);
 	TE_WriteFloat("m_vecOrigin[1]", origin[1]);
