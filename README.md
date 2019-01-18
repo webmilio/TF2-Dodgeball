@@ -8,14 +8,14 @@ A wiki will be setup detailing the config for the plugin.
 
 # Features
 
-Dodgeball Admin Menu (Allows you to change max rockets and rocket speed, although the rocket speed is somewhat buggy)
-Pyrovision support
-Beep to new target when a redirected rocket occurs
-Steal prevention system
-Speedometer
-Accurate mph and deflection counter on kill
-Disable tauntkilling straight from the plugin
-Airblast Prevention toggle command (To allow for some fun for players which choose it)
+- Dodgeball Admin Menu (Allows you to change max rockets and rocket speed, although the rocket speed is somewhat buggy)
+- Pyrovision support
+- Beep to new target when a redirected rocket occurs
+- Steal prevention system
+- Speedometer
+- Accurate mph and deflection counter on kill
+- Disable tauntkilling straight from the plugin
+- Airblast Prevention toggle command (To allow for some fun for players which choose it)
 
 # Requirements
 
