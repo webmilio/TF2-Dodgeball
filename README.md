@@ -23,7 +23,7 @@ A wiki will be setup detailing the config for the plugin.
 
 ###### [TF2Attributes](https://forums.alliedmods.net/showthread.php?t=210221) ######
 
-# Credits
+# Credits 
 
 Damizean - Original Plugin
 ReflexPoison - Speedometer & Announce mph on death
