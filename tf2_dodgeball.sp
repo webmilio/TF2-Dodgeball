@@ -21,9 +21,9 @@
 // *********************************************************************************
 // ---- Plugin-related constants ---------------------------------------------------
 #define PLUGIN_NAME				"[TF2] Yet Another Dodgeball Plugin"
-#define PLUGIN_AUTHOR			"Damizean, Edited by BloodTiger"
-#define PLUGIN_VERSION			"1.3"
-#define PLUGIN_CONTACT			"elgigantedeyeso@gmail.com"
+#define PLUGIN_AUTHOR			"Damizean, Edited by blood"
+#define PLUGIN_VERSION			"1.3.6"
+#define PLUGIN_CONTACT			"https://savita-gaming.com"
 
 // ---- General settings -----------------------------------------------------------
 #define FPS_LOGIC_RATE			20.0
@@ -53,6 +53,10 @@ int g_config_iMaxBounces = 2;
 
 // ---- Airblast -------------------------------------------------------------------
 bool Airblast[MAXPLAYERS + 1] =  { true, ... };
+
+// Particlessss
+int g_RocketParticle[MAXPLAYERS + 1];
+bool g_RocketChasing[MAXPLAYERS + 1];
 
 // ---- Flags and types constants --------------------------------------------------
 enum Musics
@@ -139,7 +143,6 @@ Handle g_hCvarEnableCfgFile;
 Handle g_hCvarDisableCfgFile;
 Handle g_hCvarSpeedo;
 Handle g_hCvarAnnounce;
-Handle g_hCvarAnnounceKill;
 Handle g_hCvarPyroVisionEnabled = INVALID_HANDLE;
 Handle g_hCvarAirBlastCommandEnabled;
 Handle g_hCvarDeflectCountAnnounce;
@@ -193,6 +196,8 @@ float g_fRocketLastDeflectionTime[MAX_ROCKETS];
 float g_fRocketLastBeepTime[MAX_ROCKETS];
 int g_iLastCreatedRocket;
 int g_iRocketCount;
+float g_fSavedSpeed;
+float g_fSavedSpeedIncrement;
 
 // Classes
 char g_strRocketClassName[MAX_ROCKET_CLASSES][16];
@@ -285,7 +290,6 @@ public void OnPluginStart()
 	g_hCvarDisableCfgFile = CreateConVar("tf_dodgeball_disablecfg", "sourcemod/dodgeball_disable.cfg", "Config file to execute when disabling the Dodgeball game mode.");
 	g_hCvarSpeedo = CreateConVar("tf_dodgeball_speedo", "1", "Enable HUD speedometer");
 	g_hCvarAnnounce = CreateConVar("tf_dodgeball_announce", "1", "Enable kill announces in chat");
-	g_hCvarAnnounceKill = CreateConVar("tf_dodgeball_announcekill", "1", "Enable who killed who in chat");
 	g_hCvarPyroVisionEnabled = CreateConVar("tf_dodgeball_pyrovision", "1", "Enable pyrovision for everyone");
 	g_hMaxBouncesConVar = CreateConVar("tf_dodgeball_rbmax", "2", "Max number of times a rocket will bounce.", FCVAR_NONE, true, 0.0, false);
 	g_hCvarAirBlastCommandEnabled = CreateConVar("tf_dodgeball_airblast", "1", "Enable if airblast is enabled or not");
@@ -297,6 +301,7 @@ public void OnPluginStart()
 	
 	// Commands
 	RegConsoleCmd("sm_ab", Command_ToggleAirblast, USAGE);
+	RegAdminCmd("sm_tfdb", Command_DodgeballAdminMenu, ADMFLAG_GENERIC, "A menu for admins to modify things inside the plugin.");
 	
 	ServerCommand("tf_arena_use_queue 0");
 	
@@ -333,6 +338,322 @@ public void OnConfigsExecuted()
 public void OnMapEnd()
 {
 	DisableDodgeBall();
+}
+
+public Action Command_DodgeballAdminMenu(int client, int args)
+{
+	Menu menu = new Menu(DodgeballAdmin_Handler, MENU_ACTIONS_ALL);
+	
+	menu.SetTitle("Dodgeball Admin Menu");
+	
+	menu.AddItem("0", "Max Rocket Count");
+	menu.AddItem("1", "Speed Multiplier");
+	
+	menu.ExitButton = true;
+	menu.Display(client, MENU_TIME_FOREVER);
+	
+	return Plugin_Handled;
+}
+
+public int DodgeballAdmin_Handler(Menu menu, MenuAction action, int param1, int param2)
+{
+	switch (action)
+	{
+		case MenuAction_Start:
+		{
+			// It's important to log anything in any way, the best is printtoserver, but if you just want to log to client to make it easier to get progress done, feel free.
+			PrintToServer("Displaying menu"); // Log it
+		}
+		
+		case MenuAction_Display:
+		{
+			PrintToServer("Client %d was sent menu with panel %x", param1, param2); // Log so you can check if it gets sent.
+		}
+		
+		case MenuAction_Select:
+		{
+			char sInfo[32];
+			menu.GetItem(param2, sInfo, sizeof(sInfo));
+			
+			switch (param2)
+			{
+				case 0:
+				{
+					DrawMaxRocketCountMenu(param1);
+				}
+				case 1:
+				{
+					DrawRocketSpeedMenu(param1);
+				}
+			}
+		}
+		
+		case MenuAction_Cancel:
+		{
+			PrintToServer("Client %d's menu was cancelled for reason %d", param1, param2); // Logging once again.
+		}
+		
+		case MenuAction_End:
+		{
+			delete menu;
+		}
+		
+		case MenuAction_DrawItem:
+		{
+			int style;
+			char info[32];
+			menu.GetItem(param2, info, sizeof(info), style);
+		}
+		
+		case MenuAction_DisplayItem:
+		{
+			char info[32];
+			menu.GetItem(param2, info, sizeof(info));
+		}
+	}
+}
+
+void DrawMaxRocketCountMenu(int client)
+{
+	Menu menu = new Menu(DodgeballAdminRocketCount_Handler, MENU_ACTIONS_ALL);
+	
+	menu.SetTitle("How many rockets?");
+	
+	menu.AddItem("1", "One");
+	menu.AddItem("2", "Two");
+	menu.AddItem("3", "Three");
+	menu.AddItem("4", "Four");
+	menu.AddItem("5", "Five");
+	
+	menu.ExitButton = true;
+	menu.Display(client, MENU_TIME_FOREVER);
+}
+
+void DrawRocketSpeedMenu(int client)
+{
+	Menu menu = new Menu(DodgeballAdminRocketSpeed_Handler, MENU_ACTIONS_ALL);
+	
+	menu.SetTitle("How fast should the rockets go?");
+	
+	menu.AddItem("1", "25% (Slow)");
+	menu.AddItem("2", "50% (Normal)");
+	menu.AddItem("3", "75% (Fast)");
+	menu.AddItem("4", "100% (Silly Fast)");
+	
+	menu.ExitButton = true;
+	menu.Display(client, MENU_TIME_FOREVER);
+}
+
+public int DodgeballAdminRocketCount_Handler(Menu menu, MenuAction action, int param1, int param2)
+{
+	switch (action)
+	{
+		case MenuAction_Start:
+		{
+			// It's important to log anything in any way, the best is printtoserver, but if you just want to log to client to make it easier to get progress done, feel free.
+			PrintToServer("Displaying menu"); // Log it
+		}
+		
+		case MenuAction_Display:
+		{
+			PrintToServer("Client %d was sent menu with panel %x", param1, param2); // Log so you can check if it gets sent.
+		}
+		
+		case MenuAction_Select:
+		{
+			char sInfo[32];
+			menu.GetItem(param2, sInfo, sizeof(sInfo));
+			
+			switch (param2)
+			{
+				case 0:
+				{
+					int iSpawnerClassBlu = g_iSpawnPointsBluClass[g_iCurrentBluSpawn];
+					g_iSpawnersMaxRockets[iSpawnerClassBlu] = 1;
+					
+					int iSpawnerClassRed = g_iSpawnPointsRedClass[g_iCurrentRedSpawn];
+					g_iSpawnersMaxRockets[iSpawnerClassRed] = 1;
+					
+					CPrintToChatAll("{yellow}Savita Gaming {white}| %N changed the max rockets to 1.", param1);
+				}
+				case 1:
+				{
+					int iSpawnerClassBlu = g_iSpawnPointsBluClass[g_iCurrentBluSpawn];
+					g_iSpawnersMaxRockets[iSpawnerClassBlu] = 2;
+					
+					int iSpawnerClassRed = g_iSpawnPointsRedClass[g_iCurrentRedSpawn];
+					g_iSpawnersMaxRockets[iSpawnerClassRed] = 2;
+					
+					CPrintToChatAll("{yellow}Savita Gaming {white}| %N changed the max rockets to 2.", param1);
+				}
+				case 2:
+				{
+					int iSpawnerClassBlu = g_iSpawnPointsBluClass[g_iCurrentBluSpawn];
+					g_iSpawnersMaxRockets[iSpawnerClassBlu] = 3;
+					
+					int iSpawnerClassRed = g_iSpawnPointsRedClass[g_iCurrentRedSpawn];
+					g_iSpawnersMaxRockets[iSpawnerClassRed] = 3;
+					
+					CPrintToChatAll("{yellow}Savita Gaming {white}| %N changed the max rockets to 3.", param1);
+				}
+				case 3:
+				{
+					int iSpawnerClassBlu = g_iSpawnPointsBluClass[g_iCurrentBluSpawn];
+					g_iSpawnersMaxRockets[iSpawnerClassBlu] = 4;
+					
+					int iSpawnerClassRed = g_iSpawnPointsRedClass[g_iCurrentRedSpawn];
+					g_iSpawnersMaxRockets[iSpawnerClassRed] = 4;
+					
+					CPrintToChatAll("{yellow}Savita Gaming {white}| %N changed the max rockets to 4.", param1);
+				}
+				case 4:
+				{
+					int iSpawnerClassBlu = g_iSpawnPointsBluClass[g_iCurrentBluSpawn];
+					g_iSpawnersMaxRockets[iSpawnerClassBlu] = 5;
+					
+					int iSpawnerClassRed = g_iSpawnPointsRedClass[g_iCurrentRedSpawn];
+					g_iSpawnersMaxRockets[iSpawnerClassRed] = 5;
+					
+					CPrintToChatAll("{yellow}Savita Gaming {white}| %N changed the max rockets to 5.", param1);
+				}
+			}
+		}
+		
+		case MenuAction_Cancel:
+		{
+			PrintToServer("Client %d's menu was cancelled for reason %d", param1, param2); // Logging once again.
+		}
+		
+		case MenuAction_End:
+		{
+			delete menu;
+		}
+		
+		case MenuAction_DrawItem:
+		{
+			int style;
+			char info[32];
+			menu.GetItem(param2, info, sizeof(info), style);
+		}
+		
+		case MenuAction_DisplayItem:
+		{
+			char info[32];
+			menu.GetItem(param2, info, sizeof(info));
+		}
+	}
+}
+
+public int DodgeballAdminRocketSpeed_Handler(Menu menu, MenuAction action, int param1, int param2)
+{
+	switch (action)
+	{
+		case MenuAction_Start:
+		{
+			// It's important to log anything in any way, the best is printtoserver, but if you just want to log to client to make it easier to get progress done, feel free.
+			PrintToServer("Displaying menu"); // Log it
+		}
+		
+		case MenuAction_Display:
+		{
+			PrintToServer("Client %d was sent menu with panel %x", param1, param2); // Log so you can check if it gets sent.
+		}
+		
+		case MenuAction_Select:
+		{
+			char sInfo[32];
+			menu.GetItem(param2, sInfo, sizeof(sInfo));
+			float kvSpeed = g_fSavedSpeed;
+			float kvSpeedIncrement = g_fSavedSpeedIncrement;
+			
+			switch (param2)
+			{
+				case 0:
+				{
+					int iSpawnerClassBlu = g_iSpawnPointsBluClass[g_iCurrentBluSpawn];
+					int iSpawnerClassRed = g_iSpawnPointsRedClass[g_iCurrentRedSpawn];
+					int iClassRed = GetRandomRocketClass(iSpawnerClassRed);
+					int iClassBlu = GetRandomRocketClass(iSpawnerClassBlu);
+					
+					g_fRocketSpeed[iClassRed] = kvSpeed / 2;
+					g_fRocketClassSpeedIncrement[iClassRed] = kvSpeedIncrement / 2;
+					
+					g_fRocketSpeed[iClassBlu] = kvSpeed / 2;
+					g_fRocketClassSpeedIncrement[iClassBlu] = kvSpeedIncrement / 2;
+					
+					CPrintToChatAll("{yellow}Savita Gaming {white}| %N changed the rocket speed to 25% (Slow)", param1);
+				}
+				case 1:
+				{
+					int iSpawnerClassBlu = g_iSpawnPointsBluClass[g_iCurrentBluSpawn];
+					int iSpawnerClassRed = g_iSpawnPointsRedClass[g_iCurrentRedSpawn];
+					int iClassRed = GetRandomRocketClass(iSpawnerClassRed);
+					int iClassBlu = GetRandomRocketClass(iSpawnerClassBlu);
+					
+					g_fRocketSpeed[iClassRed] = kvSpeed;
+					g_fRocketClassSpeedIncrement[iClassRed] = kvSpeedIncrement;
+					
+					g_fRocketSpeed[iClassBlu] = kvSpeed;
+					g_fRocketClassSpeedIncrement[iClassBlu] = kvSpeedIncrement;
+					
+					CPrintToChatAll("{yellow}Savita Gaming {white}| %N changed the rocket speed to 50% (Normal)", param1);
+				}
+				case 2:
+				{
+					int iSpawnerClassBlu = g_iSpawnPointsBluClass[g_iCurrentBluSpawn];
+					int iSpawnerClassRed = g_iSpawnPointsRedClass[g_iCurrentRedSpawn];
+					int iClassRed = GetRandomRocketClass(iSpawnerClassRed);
+					int iClassBlu = GetRandomRocketClass(iSpawnerClassBlu);
+					
+					g_fRocketSpeed[iClassRed] = kvSpeed * 2;
+					g_fRocketClassSpeedIncrement[iClassRed] = kvSpeedIncrement * 2;
+					
+					g_fRocketSpeed[iClassBlu] = kvSpeed * 2;
+					g_fRocketClassSpeedIncrement[iClassBlu] = kvSpeedIncrement * 2;
+					
+					CPrintToChatAll("{yellow}Savita Gaming {white}| %N changed the rocket speed to 75% (Fast)", param1);
+				}
+				case 3:
+				{
+					int iSpawnerClassBlu = g_iSpawnPointsBluClass[g_iCurrentBluSpawn];
+					int iSpawnerClassRed = g_iSpawnPointsRedClass[g_iCurrentRedSpawn];
+					int iClassRed = GetRandomRocketClass(iSpawnerClassRed);
+					int iClassBlu = GetRandomRocketClass(iSpawnerClassBlu);
+					
+					g_fRocketSpeed[iClassRed] = kvSpeed * 3;
+					g_fRocketClassSpeedIncrement[iClassRed] = kvSpeedIncrement * 3;
+					
+					g_fRocketSpeed[iClassBlu] = kvSpeed * 3;
+					g_fRocketClassSpeedIncrement[iClassBlu] = kvSpeedIncrement * 3;
+					
+					CPrintToChatAll("{yellow}Savita Gaming {white}| %N changed the rocket speed to 100% (Silly Fast)", param1);
+				}
+			}
+		}
+		
+		case MenuAction_Cancel:
+		{
+			PrintToServer("Client %d's menu was cancelled for reason %d", param1, param2); // Logging once again.
+		}
+		
+		case MenuAction_End:
+		{
+			delete menu;
+		}
+		
+		case MenuAction_DrawItem:
+		{
+			int style;
+			char info[32];
+			menu.GetItem(param2, info, sizeof(info), style);
+		}
+		
+		case MenuAction_DisplayItem:
+		{
+			char info[32];
+			menu.GetItem(param2, info, sizeof(info));
+		}
+	}
 }
 
 /*
@@ -744,7 +1065,6 @@ public Action OnPlayerSpawn(Handle hEvent, char[] strEventName, bool bDontBroadc
 ** -------------------------------------------------------------------------- */
 public Action OnPlayerDeath(Handle hEvent, char[] strEventName, bool bDontBroadcast)
 {
-	int killer = GetClientOfUserId(GetEventInt(hEvent, "attacker"));
 	if (g_bRoundStarted == false)
 	{
 		return;
@@ -782,11 +1102,11 @@ public Action OnPlayerDeath(Handle hEvent, char[] strEventName, bool bDontBroadc
 			{
 				if (GetConVarBool(g_hCvarDeflectCountAnnounce))
 				{
-					if (iTarget == iVictim) 
+					if (iVictim == iTarget)
 					{
 						CPrintToChatAll("\x05%N\01 died to their rocket travelling \x05%i\x01 mph with \x05%i\x01 deflections!", g_iLastDeadClient, g_iRocketSpeed, iDeflections);
-					} 
-					else 
+					}
+					else
 					{
 						CPrintToChatAll("\x05%N\x01 died to \x05%.15N's\x01 rocket travelling \x05%i\x01 mph with \x05%i\x01 deflections!", g_iLastDeadClient, iTarget, g_iRocketSpeed, iDeflections);
 					}
@@ -794,14 +1114,6 @@ public Action OnPlayerDeath(Handle hEvent, char[] strEventName, bool bDontBroadc
 				else
 				{
 					CPrintToChatAll("\x05%N\01 died to a rocket travelling \x05%i\x01 mph!", g_iLastDeadClient, g_iRocketSpeed);
-				}
-			}
-			
-			if (GetConVarBool(g_hCvarAnnounceKill))
-			{
-				if (killer == 1)
-				{
-					CPrintToChatAll("\x05%N\01 died to \x05%N\x01", g_iLastDeadClient, killer);
 				}
 			}
 			
@@ -949,6 +1261,23 @@ public Action OnDodgeBallGameFrame(Handle hTimer, any Data)
 	}
 }
 
+public Action ShowToTarget(int iIndex, int iClient) 
+{
+	int iParticle = EntRefToEntIndex(g_RocketParticle[iIndex]);
+	int iTarget = EntRefToEntIndex(g_iRocketTarget[iIndex]);
+	
+	if (!IsValidEntity(iParticle)) 
+		return Plugin_Handled;
+		
+	if (!IsValidClient(iTarget)) 
+		return Plugin_Handled;
+		
+	if (iClient != iTarget) 
+		return Plugin_Handled;
+		
+	return Plugin_Continue;
+}
+
 public Action Timer_HudSpeed(Handle hTimer)
 {
 	if (GetConVarBool(g_hCvarSpeedo))
@@ -1043,6 +1372,10 @@ public void CreateRocket(int iSpawnerEntity, int iSpawnerClass, int iTeam)
 			g_iRocketsFired++;
 			g_fNextSpawnTime = GetGameTime() + g_fSpawnersInterval[iSpawnerClass];
 			
+			//AttachParticle(iEntity, "burningplayer_rainbow_glow");
+			AttachParticle(iEntity, "burningplayer_rainbow_glow_old");
+			//CreateTempParticle("superrare_greenenergy", iEntity, _, _, true);
+			SDKHook(iEntity, SDKHook_SetTransmit, ShowToTarget);
 			
 			//Observer
 			if (IsValidEntity(g_observer))
@@ -1881,7 +2214,9 @@ void ParseClasses(Handle kvConfig)
 		g_fRocketClassDamageIncrement[iIndex] = KvGetFloat(kvConfig, "damage increment");
 		g_fRocketClassCritChance[iIndex] = KvGetFloat(kvConfig, "critical chance");
 		g_fRocketClassSpeed[iIndex] = KvGetFloat(kvConfig, "speed");
+		g_fSavedSpeed = KvGetFloat(kvConfig, "speed");
 		g_fRocketClassSpeedIncrement[iIndex] = KvGetFloat(kvConfig, "speed increment");
+		g_fSavedSpeedIncrement = KvGetFloat(kvConfig, "speed increment");
 		g_fRocketClassTurnRate[iIndex] = KvGetFloat(kvConfig, "turn rate");
 		g_fRocketClassTurnRateIncrement[iIndex] = KvGetFloat(kvConfig, "turn rate increment");
 		g_fRocketClassElevationRate[iIndex] = KvGetFloat(kvConfig, "elevation rate");
@@ -2497,7 +2832,6 @@ public Action TauntCheck(int victim, int &attacker, int &inflictor, float &damag
 
 void checkStolenRocket(int clientId, int entId)
 {
-	
 	if (EntRefToEntIndex(g_iRocketTarget[entId]) != clientId && !bStealArray[clientId][stoleRocket])
 	{
 		bStealArray[clientId][stoleRocket] = true;
@@ -2507,9 +2841,12 @@ void checkStolenRocket(int clientId, int entId)
 			CreateTimer(0.1, tStealTimer, GetClientUserId(clientId), TIMER_FLAG_NO_MAPCHANGE);
 			SlapPlayer(clientId, 0, true);
 			PrintToChat(clientId, "\x03Do not steal rockets. [Warning %i/%i]", bStealArray[clientId][rocketsStolen], GetConVarInt(g_hCvarStealPreventionNumber));
-		} else {
+		}
+		else
+		{
 			ForcePlayerSuicide(clientId);
 			PrintToChat(clientId, "\x03You have been slain for stealing rockets.");
+			PrintToChatAll("\x03%N was slain for stealing rockets.", clientId);
 		}
 	}
 }
@@ -2518,6 +2855,71 @@ public Action tStealTimer(Handle hTimer, int iClientUid)
 {
 	int iClient = GetClientOfUserId(iClientUid);
 	bStealArray[iClient][stoleRocket] = false;
+}
+
+void AttachParticle(int iEntity, char[] strParticleType)
+{
+	int iParticle = CreateEntityByName("info_particle_system");
+	
+	char strName[128];
+	if (IsValidEdict(iParticle))
+	{
+		float fPos[3];
+		GetEntPropVector(iEntity, Prop_Send, "m_vecOrigin", fPos);
+		fPos[2] += 10;
+		TeleportEntity(iParticle, fPos, NULL_VECTOR, NULL_VECTOR);
+		
+		Format(strName, sizeof(strName), "target%i", iEntity);
+		DispatchKeyValue(iEntity, "targetname", strName);
+		
+		DispatchKeyValue(iParticle, "targetname", "tf2particle");
+		DispatchKeyValue(iParticle, "parentname", strName);
+		DispatchKeyValue(iParticle, "effect_name", strParticleType);
+		DispatchSpawn(iParticle);
+		SetVariantString(strName);
+		AcceptEntityInput(iParticle, "SetParent", iParticle, iParticle, 0);
+		SetVariantString("");
+		AcceptEntityInput(iParticle, "SetParentAttachment", iParticle, iParticle, 0);
+		ActivateEntity(iParticle);
+		AcceptEntityInput(iParticle, "start");
+		
+		g_RocketParticle[iEntity] = iParticle;
+	}
+}
+
+stock void CreateTempParticle(char[] particle, int entity = -1, float origin[3] = NULL_VECTOR, float angles[3] = {0.0, 0.0, 0.0}, bool resetparticles = false)
+{
+	int tblidx = FindStringTable("ParticleEffectNames");
+
+	char tmp[256];
+	int stridx = INVALID_STRING_INDEX;
+
+	for (int i = 0; i < GetStringTableNumStrings(tblidx); i++)
+	{
+		ReadStringTable(tblidx, i, tmp, sizeof(tmp));
+		if(StrEqual(tmp, particle, false))
+		{
+			stridx = i;
+			break;
+		}
+	}
+
+	TE_Start("TFParticleEffect");
+	TE_WriteFloat("m_vecOrigin[0]", origin[0]);
+	TE_WriteFloat("m_vecOrigin[1]", origin[1]);
+	TE_WriteFloat("m_vecOrigin[2]", origin[2]);
+	TE_WriteVector("m_vecAngles", angles);
+	TE_WriteNum("m_iParticleSystemIndex", stridx);
+	TE_WriteNum("entindex", entity);
+	TE_WriteNum("m_iAttachType", 1);
+	TE_WriteNum("m_bResetParticles", resetparticles);
+	TE_SendToAll();
+}
+
+stock void ClearTempParticles(int client)
+{
+	float empty[3];
+	CreateTempParticle("sandwich_fx", client, empty, empty, true);
 }
 
 /*void StolenRocket(int iClient, int iTarget)
