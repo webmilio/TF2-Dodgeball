@@ -55,7 +55,7 @@ int g_config_iMaxBounces = 2;
 bool Airblast[MAXPLAYERS + 1] =  { true, ... };
 
 // Particlessss
-int g_RocketParticle[MAXPLAYERS + 1];
+//int g_RocketParticle[MAXPLAYERS + 1];
 
 // ---- Flags and types constants --------------------------------------------------
 enum Musics
@@ -1272,7 +1272,7 @@ public Action OnDodgeBallGameFrame(Handle hTimer, any Data)
 	}
 }
 
-public Action ShowToTarget(int iIndex, int iClient)
+/*public Action ShowToTarget(int iIndex, int iClient)
 {
 	int iParticle = EntRefToEntIndex(g_RocketParticle[iIndex]);
 	int iTarget = EntRefToEntIndex(g_iRocketTarget[iIndex]);
@@ -1287,7 +1287,7 @@ public Action ShowToTarget(int iIndex, int iClient)
 		return Plugin_Handled;
 	
 	return Plugin_Continue;
-}
+}*/
 
 public Action Timer_HudSpeed(Handle hTimer)
 {
@@ -1385,9 +1385,9 @@ public void CreateRocket(int iSpawnerEntity, int iSpawnerClass, int iTeam)
 			g_bRocketIsNuke[iIndex] = false;
 			
 			//AttachParticle(iEntity, "burningplayer_rainbow_glow");
-			AttachParticle(iEntity, "burningplayer_rainbow_glow_old");
+			//AttachParticle(iEntity, "burningplayer_rainbow_glow_old");
 			//CreateTempParticle("superrare_greenenergy", iEntity, _, _, true);
-			SDKHook(iEntity, SDKHook_SetTransmit, ShowToTarget);
+			//SDKHook(iEntity, SDKHook_SetTransmit, ShowToTarget);
 			
 			//Observer
 			if (IsValidEntity(g_observer))
@@ -2882,7 +2882,7 @@ public Action tStealTimer(Handle hTimer, int iClientUid)
 	bStealArray[iClient][stoleRocket] = false;
 }
 
-void AttachParticle(int iEntity, char[] strParticleType)
+/*void AttachParticle(int iEntity, char[] strParticleType)
 {
 	int iParticle = CreateEntityByName("info_particle_system");
 	
@@ -2910,7 +2910,7 @@ void AttachParticle(int iEntity, char[] strParticleType)
 		
 		g_RocketParticle[iEntity] = iParticle;
 	}
-}
+}*/
 
 stock void CreateTempParticle(char[] particle, int entity = -1, float origin[3] = NULL_VECTOR, float angles[3] =  { 0.0, 0.0, 0.0 }, bool resetparticles = false)
 {
