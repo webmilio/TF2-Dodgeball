@@ -1,7 +1,7 @@
- // *********************************************************************************
+// *********************************************************************************
 // PREPROCESSOR
 // *********************************************************************************
-#pragma semicolon 1				  // Force strict semicolon mode.
+#pragma semicolon 1				// Force strict semicolon mode.
 
 // *********************************************************************************
 // INCLUDES
@@ -21,8 +21,8 @@
 // *********************************************************************************
 // ---- Plugin-related constants ---------------------------------------------------
 #define PLUGIN_NAME				"[TF2] Yet Another Dodgeball Plugin"
-#define PLUGIN_AUTHOR			"Damizean, Edited by blood"
-#define PLUGIN_VERSION			"1.4.1"
+#define PLUGIN_AUTHOR			"Damizean, Edited by blood and soul"
+#define PLUGIN_VERSION			"1.4.2"
 #define PLUGIN_CONTACT			"https://savita-gaming.com"
 
 // ---- General settings -----------------------------------------------------------
@@ -202,6 +202,7 @@ float g_fSavedSpeedIncrement;
 // Classes
 char g_strRocketClassName[MAX_ROCKET_CLASSES][16];
 char g_strRocketClassLongName[MAX_ROCKET_CLASSES][32];
+char g_strSavedClassName[32];
 BehaviourTypes g_iRocketClassBehaviour[MAX_ROCKET_CLASSES];
 char g_strRocketClassModel[MAX_ROCKET_CLASSES][PLATFORM_MAX_PATH];
 RocketFlags g_iRocketClassFlags[MAX_ROCKET_CLASSES];
@@ -290,18 +291,19 @@ public void OnPluginStart()
 	g_hCvarDisableCfgFile = CreateConVar("tf_dodgeball_disablecfg", "sourcemod/dodgeball_disable.cfg", "Config file to execute when disabling the Dodgeball game mode.");
 	g_hCvarSpeedo = CreateConVar("tf_dodgeball_speedo", "1", "Enable HUD speedometer");
 	g_hCvarAnnounce = CreateConVar("tf_dodgeball_announce", "1", "Enable kill announces in chat");
-	g_hCvarPyroVisionEnabled = CreateConVar("tf_dodgeball_pyrovision", "1", "Enable pyrovision for everyone");
+	g_hCvarPyroVisionEnabled = CreateConVar("tf_dodgeball_pyrovision", "0", "Enable pyrovision for everyone");
 	g_hMaxBouncesConVar = CreateConVar("tf_dodgeball_rbmax", "10000", "Max number of times a rocket will bounce.", FCVAR_NONE, true, 0.0, false);
 	g_hCvarAirBlastCommandEnabled = CreateConVar("tf_dodgeball_airblast", "1", "Enable if airblast is enabled or not");
 	g_hCvarDeflectCountAnnounce = CreateConVar("tf_dodgeball_count_deflect", "1", "Enable number of deflections in kill announce");
 	g_hCvarRedirectBeep = CreateConVar("tf_dodgeball_rdrbeep", "1", "Do redirects beep?");
-	g_hCvarPreventTauntKillEnabled = CreateConVar("tf_dodgeball_block_tauntkill", "1", "Block taunt kills?");
-	g_hCvarStealPrevention = CreateConVar("tf_dodgeball_steal_prevention", "1", "Enable steal prevention?");
+	g_hCvarPreventTauntKillEnabled = CreateConVar("tf_dodgeball_block_tauntkill", "0", "Block taunt kills?");
+	g_hCvarStealPrevention = CreateConVar("tf_dodgeball_steal_prevention", "0", "Enable steal prevention?");
 	g_hCvarStealPreventionNumber = CreateConVar("tf_dodgeball_sp_number", "3", "How many steals before you get slayed?");
 	
 	// Commands
 	RegConsoleCmd("sm_ab", Command_ToggleAirblast, USAGE);
 	RegAdminCmd("sm_tfdb", Command_DodgeballAdminMenu, ADMFLAG_GENERIC, "A menu for admins to modify things inside the plugin.");
+	RegConsoleCmd("sm_currentrocket", Command_PostCurrentRocketClass, "Posts a chat message of the name of the current main rocket class.");
 	
 	ServerCommand("tf_arena_use_queue 0");
 	
@@ -348,6 +350,7 @@ public Action Command_DodgeballAdminMenu(int client, int args)
 	
 	menu.AddItem("0", "Max Rocket Count");
 	menu.AddItem("1", "Speed Multiplier");
+	menu.AddItem("2", "Main Rocket Class");
 	
 	menu.ExitButton = true;
 	menu.Display(client, MENU_TIME_FOREVER);
@@ -384,6 +387,14 @@ public int DodgeballAdmin_Handler(Menu menu, MenuAction action, int param1, int 
 				case 1:
 				{
 					DrawRocketSpeedMenu(param1);
+				}
+				case 2:
+				{
+					if (!g_strSavedClassName[0]) {
+						CPrintToChat(param1, "No main class detected, aborting...");
+						return;
+					}
+					DrawRocketClassMenu(param1);
 				}
 			}
 		}
@@ -444,6 +455,30 @@ void DrawRocketSpeedMenu(int client)
 	menu.Display(client, MENU_TIME_FOREVER);
 }
 
+void DrawRocketClassMenu(int client)
+{
+	Menu menu = new Menu(DodgeballAdminRocketClass_Handler, MENU_ACTIONS_ALL);
+	
+	menu.SetTitle("Which class should the rocket be set to?");
+	
+	for (int currentClass = 0; currentClass < g_iRocketClassCount; currentClass++)
+	{
+		char classNumber[16];
+		IntToString(currentClass, classNumber, sizeof(classNumber));
+		if (StrEqual(g_strSavedClassName, g_strRocketClassLongName[currentClass]))
+		{
+			char currentClassName[32];
+			strcopy(currentClassName, sizeof(currentClassName), "[Current] ");
+			StrCat(currentClassName, sizeof(currentClassName), g_strSavedClassName);
+			menu.AddItem(classNumber, currentClassName);
+		}
+		else menu.AddItem(classNumber, g_strRocketClassLongName[currentClass]);
+	}
+	
+	menu.ExitButton = true;
+	menu.Display(client, MENU_TIME_FOREVER);
+}
+
 public int DodgeballAdminRocketCount_Handler(Menu menu, MenuAction action, int param1, int param2)
 {
 	switch (action)
@@ -474,7 +509,7 @@ public int DodgeballAdminRocketCount_Handler(Menu menu, MenuAction action, int p
 					int iSpawnerClassRed = g_iSpawnPointsRedClass[g_iCurrentRedSpawn];
 					g_iSpawnersMaxRockets[iSpawnerClassRed] = 1;
 					
-					CPrintToChatAll("%N changed the max rockets to 1.", param1);
+					CPrintToChatAll("\x05%N\01 changed the max rockets to\x05 1\01.", param1);
 				}
 				case 1:
 				{
@@ -484,7 +519,7 @@ public int DodgeballAdminRocketCount_Handler(Menu menu, MenuAction action, int p
 					int iSpawnerClassRed = g_iSpawnPointsRedClass[g_iCurrentRedSpawn];
 					g_iSpawnersMaxRockets[iSpawnerClassRed] = 2;
 					
-					CPrintToChatAll("%N changed the max rockets to 2.", param1);
+					CPrintToChatAll("\x05%N\01 changed the max rockets to \x05 2\01.", param1);
 				}
 				case 2:
 				{
@@ -494,7 +529,7 @@ public int DodgeballAdminRocketCount_Handler(Menu menu, MenuAction action, int p
 					int iSpawnerClassRed = g_iSpawnPointsRedClass[g_iCurrentRedSpawn];
 					g_iSpawnersMaxRockets[iSpawnerClassRed] = 3;
 					
-					CPrintToChatAll("%N changed the max rockets to 3.", param1);
+					CPrintToChatAll("\x05%N\01 changed the max rockets to \x05 3\01.", param1);
 				}
 				case 3:
 				{
@@ -504,7 +539,7 @@ public int DodgeballAdminRocketCount_Handler(Menu menu, MenuAction action, int p
 					int iSpawnerClassRed = g_iSpawnPointsRedClass[g_iCurrentRedSpawn];
 					g_iSpawnersMaxRockets[iSpawnerClassRed] = 4;
 					
-					CPrintToChatAll("%N changed the max rockets to 4.", param1);
+					CPrintToChatAll("\x05%N\01 changed the max rockets to \x05 4\01.", param1);
 				}
 				case 4:
 				{
@@ -514,7 +549,7 @@ public int DodgeballAdminRocketCount_Handler(Menu menu, MenuAction action, int p
 					int iSpawnerClassRed = g_iSpawnPointsRedClass[g_iCurrentRedSpawn];
 					g_iSpawnersMaxRockets[iSpawnerClassRed] = 5;
 					
-					CPrintToChatAll("%N changed the max rockets to 5.", param1);
+					CPrintToChatAll("\x05%N\01 changed the max rockets to \x05 5\01.", param1);
 				}
 			}
 		}
@@ -581,7 +616,7 @@ public int DodgeballAdminRocketSpeed_Handler(Menu menu, MenuAction action, int p
 					g_fRocketSpeed[iClassBlu] = kvSpeed / 2;
 					g_fRocketClassSpeedIncrement[iClassBlu] = kvSpeedIncrement / 2;
 					
-					CPrintToChatAll("%N changed the rocket speed to 25% (Slow)", param1);
+					CPrintToChatAll("\x05%N\01 changed the rocket speed to\x05 25%%\01 (Slow)", param1);
 				}
 				case 1:
 				{
@@ -596,7 +631,7 @@ public int DodgeballAdminRocketSpeed_Handler(Menu menu, MenuAction action, int p
 					g_fRocketSpeed[iClassBlu] = kvSpeed;
 					g_fRocketClassSpeedIncrement[iClassBlu] = kvSpeedIncrement;
 					
-					CPrintToChatAll("%N changed the rocket speed to 50% (Normal)", param1);
+					CPrintToChatAll("\x05%N\01 changed the rocket speed to \x05 50%%\01 (Normal)", param1);
 				}
 				case 2:
 				{
@@ -611,7 +646,7 @@ public int DodgeballAdminRocketSpeed_Handler(Menu menu, MenuAction action, int p
 					g_fRocketSpeed[iClassBlu] = kvSpeed * 2;
 					g_fRocketClassSpeedIncrement[iClassBlu] = kvSpeedIncrement * 2;
 					
-					CPrintToChatAll("%N changed the rocket speed to 75% (Fast)", param1);
+					CPrintToChatAll("\x05%N\01 changed the rocket speed to \x05 75%%\01 (Fast)", param1);
 				}
 				case 3:
 				{
@@ -626,7 +661,7 @@ public int DodgeballAdminRocketSpeed_Handler(Menu menu, MenuAction action, int p
 					g_fRocketSpeed[iClassBlu] = kvSpeed * 3;
 					g_fRocketClassSpeedIncrement[iClassBlu] = kvSpeedIncrement * 3;
 					
-					CPrintToChatAll("%N changed the rocket speed to 100% (Silly Fast)", param1);
+					CPrintToChatAll("\x05%N\01 changed the rocket speed to \x05 100%%\01 (Silly Fast)", param1);
 				}
 			}
 		}
@@ -656,14 +691,98 @@ public int DodgeballAdminRocketSpeed_Handler(Menu menu, MenuAction action, int p
 	}
 }
 
+public int DodgeballAdminRocketClass_Handler(Menu menu, MenuAction action, int param1, int param2)
+{
+	switch (action)
+	{
+		case MenuAction_Start:
+		{
+			// It's important to log anything in any way, the best is printtoserver, but if you just want to log to client to make it easier to get progress done, feel free.
+			PrintToServer("Displaying menu"); // Log it
+		}
+		
+		case MenuAction_Display:
+		{
+			PrintToServer("Client %d was sent menu with panel %x", param1, param2); // Log so you can check if it gets sent.
+		}
+		
+		case MenuAction_Select:
+		{
+			char sInfo[32];
+			menu.GetItem(param2, sInfo, sizeof(sInfo));
+			
+			int iSpawnerClassRed = g_iSpawnPointsRedClass[g_iCurrentRedSpawn];
+			char strBufferRed[256];
+			strcopy(strBufferRed, sizeof(strBufferRed), "Red");
+			
+			Format(strBufferRed, sizeof(strBufferRed), "%s%%", g_strRocketClassName[param2]);
+			SetArrayCell(g_hSpawnersChancesTable[iSpawnerClassRed], param2, 100);
+			
+			for (int iClassIndex = 0; iClassIndex < g_iRocketClassCount; iClassIndex++)
+        	{
+				if (!(iClassIndex == param2))
+        		{
+        			Format(strBufferRed, sizeof(strBufferRed), "%s%%", g_strRocketClassName[iClassIndex]);
+        			SetArrayCell(g_hSpawnersChancesTable[iSpawnerClassRed], iClassIndex, 0);
+        		}
+        	}
+			
+			int iSpawnerClassBlu = g_iSpawnPointsBluClass[g_iCurrentBluSpawn];
+			char strBufferBlue[256];
+			strcopy(strBufferBlue, sizeof(strBufferBlue), "Blue");
+			
+			Format(strBufferBlue, sizeof(strBufferBlue), "%s%%", g_strRocketClassName[param2]);
+			SetArrayCell(g_hSpawnersChancesTable[iSpawnerClassBlu], param2, 100);
+			
+			for (int iClassIndex = 0; iClassIndex < g_iRocketClassCount; iClassIndex++)
+        	{
+				if (!(iClassIndex == param2))
+        		{
+        			Format(strBufferBlue, sizeof(strBufferBlue), "%s%%", g_strRocketClassName[iClassIndex]);
+        			SetArrayCell(g_hSpawnersChancesTable[iSpawnerClassBlu], iClassIndex, 0);
+        		}
+        	}
+			
+			int iClass = GetRandomRocketClass(iSpawnerClassRed);
+			
+			strcopy(g_strSavedClassName, sizeof(g_strSavedClassName), g_strRocketClassLongName[iClass]);
+			
+			CPrintToChatAll("\x05%N\01 changed the rocket class to \x05%s\01.", param1, g_strRocketClassLongName[iClass]);
+		}
+		
+		case MenuAction_Cancel:
+		{
+			PrintToServer("Client %d's menu was cancelled for reason %d", param1, param2); // Logging once again.
+		}
+		
+		case MenuAction_End:
+		{
+			delete menu;
+		}
+		
+		case MenuAction_DrawItem:
+		{
+			int style;
+			char info[32];
+			menu.GetItem(param2, info, sizeof(info), style);
+		}
+		
+		case MenuAction_DisplayItem:
+		{
+			char info[32];
+			menu.GetItem(param2, info, sizeof(info));
+		}
+	}
+}
+
 /*
 **����������������������������������������������������������������������������������
-**	 __  ___												  __
-**	/  |/  /___ _____  ____ _____ ____  ____ ___  ___  ____  / /_
+**	   __  ___												    __
+**	  /  |/  /___ _____  ____ _____ ____  ____ ___  ___  ____  / /_
 **   / /|_/ / __ `/ __ \/ __ `/ __ `/ _ \/ __ `__ \/ _ \/ __ \/ __/
 **  / /  / / /_/ / / / / /_/ / /_/ /  __/ / / / / /  __/ / / / /_
 ** /_/  /_/\__,_/_/ /_/\__,_/\__, /\___/_/ /_/ /_/\___/_/ /_/\__/
-**						  /____/
+**						    /____/
 **����������������������������������������������������������������������������������
 */
 
@@ -863,7 +982,7 @@ public Action Event_ObjectDeflected(Handle event, const char[] name, bool dontBr
 //  / __|__ _ _ __  ___ _ __| |__ _ _  _
 // | (_ / _` | '  \/ -_) '_ \ / _` | || |
 //  \___\__,_|_|_|_\___| .__/_\__,_|\_, |
-//					 |_|		  |__/
+//						|_|		    |__/
 
 /* OnRoundStart()
 **
@@ -1022,6 +1141,24 @@ public Action Command_ToggleAirblast(int clientId, int args)
 		ReplyToCommand(clientId, "[SM] %s", "Airblast Prevention is disabled on this server.");
 		preventAirblast(clientId, false);
 	}
+	return Plugin_Handled;
+}
+
+public Action Command_PostCurrentRocketClass(int client, int args)
+{
+	if (args > 1)
+	{
+		ReplyToCommand(client, "[SM] %s", "Usage: sm_currentrocket");
+		return Plugin_Handled;
+	}
+	
+	if (!g_strSavedClassName[0]) 
+	{
+		CPrintToChat(client, "Current Rocket: \x05Multiple\01");
+		return Plugin_Handled;
+	}
+	CPrintToChatAll("Current Rocket: \x05%s\01", g_strSavedClassName);
+	
 	return Plugin_Handled;
 }
 
@@ -1304,7 +1441,7 @@ public Action Timer_HudSpeed(Handle hTimer)
 	}
 }
 
-//  ___		 _	   _
+//  ___			_		_
 // | _ \___  __| |_____| |_ ___
 // |   / _ \/ _| / / -_)  _(_-<
 // |_|_\___/\__|_\_\___|\__/__/
@@ -1770,7 +1907,7 @@ void EmitRocketSound(RocketSound iSound, int iClass, int iEntity, int iTarget, R
 	}
 }
 
-//  ___		 _	   _	  ___ _
+//	___			_		_	   ___ _
 // | _ \___  __| |_____| |_   / __| |__ _ ______ ___ ___
 // |   / _ \/ _| / / -_)  _| | (__| / _` (_-<_-</ -_|_-<
 // |_|_\___/\__|_\_\___|\__|  \___|_\__,_/__/__/\___/__/
@@ -1801,11 +1938,11 @@ void DestroyRocketClasses()
 	ClearTrie(g_hRocketClassTrie);
 }
 
-//  ___						  ___	 _	 _					 _	___ _
+//	___							 ___	 _	   _					 _	  ___ _
 // / __|_ __  __ ___ __ ___ _   | _ \___(_)_ _| |_ ___  __ _ _ _  __| |  / __| |__ _ ______ ___ ___
 // \__ \ '_ \/ _` \ V  V / ' \  |  _/ _ \ | ' \  _(_-< / _` | ' \/ _` | | (__| / _` (_-<_-</ -_|_-<
 // |___/ .__/\__,_|\_/\_/|_||_| |_| \___/_|_||_\__/__/ \__,_|_||_\__,_|  \___|_\__,_/__/__/\___/__/
-//	 |_|
+//	   |_|
 
 /* DestroySpawners()
 **
@@ -1915,7 +2052,7 @@ int FindSpawnerByName(char strName[32])
 
 /*
 **����������������������������������������������������������������������������������
-**	______										  __
+**	  ______										  __
 **   / ____/___  ____ ___  ____ ___  ____ _____  ____/ /____
 **  / /   / __ \/ __ `__ \/ __ `__ \/ __ `/ __ \/ __  / ___/
 ** / /___/ /_/ / / / / / / / / / / / /_/ / / / / /_/ (__  )
@@ -2097,12 +2234,12 @@ void ExecuteCommands(Handle hDataPack, int iClass, int iRocket, int iOwner, int 
 
 /*
 **����������������������������������������������������������������������������������
-**	______			_____
+**	  ______			_____
 **   / ____/___  ____  / __(_)___ _
 **  / /   / __ \/ __ \/ /_/ / __ `/
 ** / /___/ /_/ / / / / __/ / /_/ /
 ** \____/\____/_/ /_/_/ /_/\__, /
-**						/____/
+**						  /____/
 **����������������������������������������������������������������������������������
 */
 
@@ -2295,6 +2432,7 @@ void ParseSpawners(KeyValues kvConfig)
         {
             Format(strBuffer, sizeof(strBuffer), "%s%%", g_strRocketClassName[iClassIndex]);
             PushArrayCell(g_hSpawnersChancesTable[iIndex], KvGetNum(kvConfig, strBuffer, 0));
+            if (KvGetNum(kvConfig, strBuffer, 0) == 100)	strcopy(g_strSavedClassName, sizeof(g_strSavedClassName), g_strRocketClassLongName[iClassIndex]);
         }
         
         // Done.
@@ -2338,7 +2476,7 @@ Handle ParseCommands(char[] strLine)
 
 /*
 **����������������������������������������������������������������������������������
-**   ______			__
+**	 ______			   __
 **  /_  __/___  ____  / /____
 **   / / / __ \/ __ \/ / ___/
 **  / / / /_/ / /_/ / (__  )
