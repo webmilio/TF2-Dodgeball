@@ -8,7 +8,7 @@ A wiki will be setup detailing the config for the plugin.
 
 # Features
 
-- Dodgeball Admin Menu (Allows you to change max rockets and rocket speed, although the rocket speed is somewhat buggy)
+- Dodgeball Admin Menu: Allows you to change max rockets, change rocket speed (although it is somewhat buggy), set a main rocket class, and lets you reset configurations mid-game.
 - Pyrovision support
 - Beep to new target when a redirected rocket occurs
 - Steal prevention system
@@ -30,4 +30,5 @@ A wiki will be setup detailing the config for the plugin.
 - ClassicGuzzi - Obeserver Point
 - BloodyNightmare & Mitchell - For original version of AirblastPrevention
 - Powerlord - Original Pyrovision for all plugin
+- lizzy - Extra Admin Menu options
 

@@ -21,7 +21,7 @@
 // *********************************************************************************
 // ---- Plugin-related constants ---------------------------------------------------
 #define PLUGIN_NAME				"[TF2] Yet Another Dodgeball Plugin"
-#define PLUGIN_AUTHOR			"Damizean, Edited by blood and soul"
+#define PLUGIN_AUTHOR			"Damizean, Edited by blood and lizzy"
 #define PLUGIN_VERSION			"1.4.2"
 #define PLUGIN_CONTACT			"https://savita-gaming.com"
 
