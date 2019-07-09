@@ -351,6 +351,7 @@ public Action Command_DodgeballAdminMenu(int client, int args)
 	menu.AddItem("0", "Max Rocket Count");
 	menu.AddItem("1", "Speed Multiplier");
 	menu.AddItem("2", "Main Rocket Class");
+	menu.AddItem("3", "Refresh Configurations");
 	
 	menu.ExitButton = true;
 	menu.Display(client, MENU_TIME_FOREVER);
@@ -395,6 +396,18 @@ public int DodgeballAdmin_Handler(Menu menu, MenuAction action, int param1, int 
 						return;
 					}
 					DrawRocketClassMenu(param1);
+				}
+				case 3:
+				{
+					// Clean up everything
+					DestroyRocketClasses();
+					DestroySpawners();
+					// Then reinitialize
+					char strMapName[64]; GetCurrentMap(strMapName, sizeof(strMapName));
+					char strMapFile[PLATFORM_MAX_PATH]; Format(strMapFile, sizeof(strMapFile), "%s.cfg", strMapName);
+					ParseConfigurations();
+					ParseConfigurations(strMapFile);
+					CPrintToChatAll("\x05%N\01 refreshed the \x05dodgeball configs\01.", param1);
 				}
 			}
 		}
@@ -1959,6 +1972,7 @@ void DestroySpawners()
 	g_iSpawnPointsBluCount = 0;
 	g_iDefaultRedSpawner = -1;
 	g_iDefaultBluSpawner = -1;
+	g_strSavedClassName[0] = '\0';
 	ClearTrie(g_hSpawnersTrie);
 }
 
