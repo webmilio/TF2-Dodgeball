@@ -392,7 +392,7 @@ public int DodgeballAdmin_Handler(Menu menu, MenuAction action, int param1, int 
 				case 2:
 				{
 					if (!g_strSavedClassName[0]) {
-						CPrintToChat(param1, "No main class detected, aborting...");
+						CPrintToChat(param1, "\x05No\01 main class detected, \x05aborting\01...");
 						return;
 					}
 					DrawRocketClassMenu(param1);
@@ -757,7 +757,6 @@ public int DodgeballAdminRocketClass_Handler(Menu menu, MenuAction action, int p
         	}
 			
 			int iClass = GetRandomRocketClass(iSpawnerClassRed);
-			
 			strcopy(g_strSavedClassName, sizeof(g_strSavedClassName), g_strRocketClassLongName[iClass]);
 			
 			CPrintToChatAll("\x05%N\01 changed the rocket class to \x05%s\01.", param1, g_strRocketClassLongName[iClass]);
@@ -790,12 +789,12 @@ public int DodgeballAdminRocketClass_Handler(Menu menu, MenuAction action, int p
 
 /*
 **����������������������������������������������������������������������������������
-**	   __  ___												    __
+**	   __  ___													__
 **	  /  |/  /___ _____  ____ _____ ____  ____ ___  ___  ____  / /_
 **   / /|_/ / __ `/ __ \/ __ `/ __ `/ _ \/ __ `__ \/ _ \/ __ \/ __/
 **  / /  / / /_/ / / / / /_/ / /_/ /  __/ / / / / /  __/ / / / /_
 ** /_/  /_/\__,_/_/ /_/\__,_/\__, /\___/_/ /_/ /_/\___/_/ /_/\__/
-**						    /____/
+**							/____/
 **����������������������������������������������������������������������������������
 */
 
@@ -995,7 +994,7 @@ public Action Event_ObjectDeflected(Handle event, const char[] name, bool dontBr
 //  / __|__ _ _ __  ___ _ __| |__ _ _  _
 // | (_ / _` | '  \/ -_) '_ \ / _` | || |
 //  \___\__,_|_|_|_\___| .__/_\__,_|\_, |
-//						|_|		    |__/
+//						|_|			|__/
 
 /* OnRoundStart()
 **
@@ -1454,7 +1453,7 @@ public Action Timer_HudSpeed(Handle hTimer)
 	}
 }
 
-//  ___			_		_
+//	___			_		_
 // | _ \___  __| |_____| |_ ___
 // |   / _ \/ _| / / -_)  _(_-<
 // |_|_\___/\__|_\_\___|\__/__/
@@ -1955,7 +1954,7 @@ void DestroyRocketClasses()
 // / __|_ __  __ ___ __ ___ _   | _ \___(_)_ _| |_ ___  __ _ _ _  __| |  / __| |__ _ ______ ___ ___
 // \__ \ '_ \/ _` \ V  V / ' \  |  _/ _ \ | ' \  _(_-< / _` | ' \/ _` | | (__| / _` (_-<_-</ -_|_-<
 // |___/ .__/\__,_|\_/\_/|_||_| |_| \___/_|_||_\__/__/ \__,_|_||_\__,_|  \___|_\__,_/__/__/\___/__/
-//	   |_|
+//		|_|
 
 /* DestroySpawners()
 **
@@ -2886,7 +2885,8 @@ public void tf2dodgeball_hooks(Handle convar, const char[] oldValue, const char[
 			}
 		}
 	}
-	g_config_iMaxBounces = StringToInt(newValue);
+	if(convar == g_hMaxBouncesConVar)
+		g_config_iMaxBounces = StringToInt(newValue);
 }
 
 // Asherkins RocketBounce
