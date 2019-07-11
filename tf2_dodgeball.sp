@@ -303,6 +303,7 @@ public void OnPluginStart()
 	// Commands
 	RegConsoleCmd("sm_ab", Command_ToggleAirblast, USAGE);
 	RegAdminCmd("sm_tfdb", Command_DodgeballAdminMenu, ADMFLAG_GENERIC, "A menu for admins to modify things inside the plugin.");
+	
 	RegConsoleCmd("sm_currentrocket", Command_PostCurrentRocketClass, "Posts a chat message of the name of the current main rocket class.");
 	
 	ServerCommand("tf_arena_use_queue 0");
@@ -392,7 +393,7 @@ public int DodgeballAdmin_Handler(Menu menu, MenuAction action, int param1, int 
 				case 2:
 				{
 					if (!g_strSavedClassName[0]) {
-						CPrintToChat(param1, "\x05No\01 main class detected, \x05aborting\01...");
+						CPrintToChat(param1, "\x05No\01 main rocket class detected, \x05aborting\01...");
 						return;
 					}
 					DrawRocketClassMenu(param1);
@@ -724,42 +725,7 @@ public int DodgeballAdminRocketClass_Handler(Menu menu, MenuAction action, int p
 			char sInfo[32];
 			menu.GetItem(param2, sInfo, sizeof(sInfo));
 			
-			int iSpawnerClassRed = g_iSpawnPointsRedClass[g_iCurrentRedSpawn];
-			char strBufferRed[256];
-			strcopy(strBufferRed, sizeof(strBufferRed), "Red");
-			
-			Format(strBufferRed, sizeof(strBufferRed), "%s%%", g_strRocketClassName[param2]);
-			SetArrayCell(g_hSpawnersChancesTable[iSpawnerClassRed], param2, 100);
-			
-			for (int iClassIndex = 0; iClassIndex < g_iRocketClassCount; iClassIndex++)
-        	{
-				if (!(iClassIndex == param2))
-        		{
-        			Format(strBufferRed, sizeof(strBufferRed), "%s%%", g_strRocketClassName[iClassIndex]);
-        			SetArrayCell(g_hSpawnersChancesTable[iSpawnerClassRed], iClassIndex, 0);
-        		}
-        	}
-			
-			int iSpawnerClassBlu = g_iSpawnPointsBluClass[g_iCurrentBluSpawn];
-			char strBufferBlue[256];
-			strcopy(strBufferBlue, sizeof(strBufferBlue), "Blue");
-			
-			Format(strBufferBlue, sizeof(strBufferBlue), "%s%%", g_strRocketClassName[param2]);
-			SetArrayCell(g_hSpawnersChancesTable[iSpawnerClassBlu], param2, 100);
-			
-			for (int iClassIndex = 0; iClassIndex < g_iRocketClassCount; iClassIndex++)
-        	{
-				if (!(iClassIndex == param2))
-        		{
-        			Format(strBufferBlue, sizeof(strBufferBlue), "%s%%", g_strRocketClassName[iClassIndex]);
-        			SetArrayCell(g_hSpawnersChancesTable[iSpawnerClassBlu], iClassIndex, 0);
-        		}
-        	}
-			
-			int iClass = GetRandomRocketClass(iSpawnerClassRed);
-			strcopy(g_strSavedClassName, sizeof(g_strSavedClassName), g_strRocketClassLongName[iClass]);
-			
-			CPrintToChatAll("\x05%N\01 changed the rocket class to \x05%s\01.", param1, g_strRocketClassLongName[iClass]);
+			SetMainRocketClass(param2, param1);
 		}
 		
 		case MenuAction_Cancel:
@@ -3026,6 +2992,49 @@ void checkStolenRocket(int clientId, int entId)
 			PrintToChatAll("\x03%N was slain for stealing rockets.", clientId);
 		}
 	}
+}
+
+stock void SetMainRocketClass(int Index, int client = 0)
+{
+	int iSpawnerClassRed = g_iSpawnPointsRedClass[g_iCurrentRedSpawn];
+	char strBufferRed[256];
+	strcopy(strBufferRed, sizeof(strBufferRed), "Red");
+	
+	Format(strBufferRed, sizeof(strBufferRed), "%s%%", g_strRocketClassName[Index]);
+	SetArrayCell(g_hSpawnersChancesTable[iSpawnerClassRed], Index, 100);
+	
+	for (int iClassIndex = 0; iClassIndex < g_iRocketClassCount; iClassIndex++)
+	{
+		if (!(iClassIndex == Index))
+		{
+			Format(strBufferRed, sizeof(strBufferRed), "%s%%", g_strRocketClassName[iClassIndex]);
+			SetArrayCell(g_hSpawnersChancesTable[iSpawnerClassRed], iClassIndex, 0);
+		}
+	}
+	
+	int iSpawnerClassBlu = g_iSpawnPointsBluClass[g_iCurrentBluSpawn];
+	char strBufferBlue[256];
+	strcopy(strBufferBlue, sizeof(strBufferBlue), "Blue");
+	
+	Format(strBufferBlue, sizeof(strBufferBlue), "%s%%", g_strRocketClassName[Index]);
+	SetArrayCell(g_hSpawnersChancesTable[iSpawnerClassBlu], Index, 100);
+	
+	char strSelectionBlue[256];
+	strcopy(strSelectionBlue, sizeof(strBufferBlue), strBufferBlue);
+	
+	for (int iClassIndex = 0; iClassIndex < g_iRocketClassCount; iClassIndex++)
+	{
+		if (!(iClassIndex == Index))
+		{
+			Format(strBufferBlue, sizeof(strBufferBlue), "%s%%", g_strRocketClassName[iClassIndex]);
+			SetArrayCell(g_hSpawnersChancesTable[iSpawnerClassBlu], iClassIndex, 0);
+		}
+	}
+	
+	int iClass = GetRandomRocketClass(iSpawnerClassRed);
+	strcopy(g_strSavedClassName, sizeof(g_strSavedClassName), g_strRocketClassLongName[iClass]);
+	
+	CPrintToChatAll("\x05%N\01 changed the rocket class to \x05%s\01.", client, g_strRocketClassLongName[iClass]);
 }
 
 public Action tStealTimer(Handle hTimer, int iClientUid)
