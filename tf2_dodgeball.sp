@@ -2994,6 +2994,10 @@ void checkStolenRocket(int clientId, int entId)
 	}
 }
 
+/* SetMainRocketClass()
+**
+** Takes a specified rocket class index and sets it as the only rocket class able to spawn.
+** -------------------------------------------------------------------------- */
 stock void SetMainRocketClass(int Index, int client = 0)
 {
 	int iSpawnerClassRed = g_iSpawnPointsRedClass[g_iCurrentRedSpawn];
