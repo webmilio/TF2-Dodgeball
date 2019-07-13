@@ -11,7 +11,7 @@ A wiki will be setup detailing the config for the plugin.
 - Dodgeball Admin Menu: Allows you to change max rockets, change rocket speed (although it is somewhat buggy), set a main rocket class, and lets you reset configurations mid-game.
 - Pyrovision support
 - Beep to new target when a redirected rocket occurs
-- Steal prevention system
+- Steal and delay prevention systems
 - Speedometer
 - Accurate mph and deflection counter on kill
 - Disable tauntkilling straight from the plugin
