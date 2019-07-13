@@ -115,6 +115,7 @@ enum SpawnerFlags
 #define SOUND_DEFAULT_SPAWN				"weapons/sentry_rocket.wav"
 #define SOUND_DEFAULT_BEEP				"weapons/sentry_scan.wav"
 #define SOUND_DEFAULT_ALERT				"weapons/sentry_spot.wav"
+#define SOUND_DEFAULT_SPEEDUPALERT		"misc/doomsday_lift_warning.wav"
 #define SNDCHAN_MUSIC					32
 #define PARTICLE_NUKE_1					"fireSmokeExplosion"
 #define PARTICLE_NUKE_2					"fireSmokeExplosion1"
@@ -149,6 +150,9 @@ Handle g_hCvarRedirectBeep;
 Handle g_hCvarPreventTauntKillEnabled;
 Handle g_hCvarStealPrevention;
 Handle g_hCvarStealPreventionNumber;
+Handle g_hCvarDelayPrevention;
+Handle g_hCvarDelayPreventionTime;
+Handle g_hCvarDelayPreventionSpeedup;
 
 // -----<<< Gameplay >>>-----
 //int g_stolen[MAXPLAYERS + 1];
@@ -157,7 +161,8 @@ bool g_bRoundStarted; // Has the round started?
 int g_iRoundCount; // Current round count since map start
 int g_iRocketsFired; // No. of rockets fired since round start
 Handle g_hLogicTimer; // Logic timer
-float g_fNextSpawnTime; // Time at wich the next rocket will be able to spawn
+float g_fLastSpawnTime; // Time at which the last rocket had spawned
+float g_fNextSpawnTime; // Time at which the next rocket will be able to spawn
 int g_iLastDeadTeam; // The team of the last dead client. If none, it's a random team.
 int g_iLastDeadClient; // The last dead client. If none, it's a random client.
 int g_iPlayerCount;
@@ -184,6 +189,7 @@ char g_strWebPlayerUrl[256];
 // Rockets
 bool g_bRocketIsValid[MAX_ROCKETS];
 bool g_bRocketIsNuke[MAX_ROCKETS];
+bool g_bPreventingDelay;
 int g_iRocketEntity[MAX_ROCKETS];
 int g_iRocketTarget[MAX_ROCKETS];
 int g_iRocketSpawner[MAX_ROCKETS];
@@ -299,6 +305,9 @@ public void OnPluginStart()
 	g_hCvarPreventTauntKillEnabled = CreateConVar("tf_dodgeball_block_tauntkill", "0", "Block taunt kills?");
 	g_hCvarStealPrevention = CreateConVar("tf_dodgeball_steal_prevention", "0", "Enable steal prevention?");
 	g_hCvarStealPreventionNumber = CreateConVar("tf_dodgeball_sp_number", "3", "How many steals before you get slayed?");
+	g_hCvarDelayPrevention = CreateConVar("tf_dodgeball_delay_prevention", "0", "Enable delay prevention?");
+	g_hCvarDelayPreventionTime = CreateConVar("tf_dodgeball_dp_time", "5", "How much time (in seconds) before delay prevention activates?", FCVAR_NONE, true, 0.0, false);
+	g_hCvarDelayPreventionSpeedup = CreateConVar("tf_dodgeball_dp_speedup", "100", "How much speed (in hammer units per second) should the rocket gain (20 Refresh Rate for every 0.1 seconds) for delay prevention? Multiply by (15/352) for mph.", FCVAR_NONE, true, 0.0, false);
 	
 	// Commands
 	RegConsoleCmd("sm_ab", Command_ToggleAirblast, USAGE);
@@ -825,6 +834,7 @@ void EnableDodgeBall()
 		PrecacheSound(SOUND_DEFAULT_SPAWN, true);
 		PrecacheSound(SOUND_DEFAULT_BEEP, true);
 		PrecacheSound(SOUND_DEFAULT_ALERT, true);
+		PrecacheSound(SOUND_DEFAULT_SPEEDUPALERT, true);
 		if (g_bMusicEnabled == true)
 		{
 			if (g_bMusic[Music_RoundStart])PrecacheSoundEx(g_strMusic[Music_RoundStart], true, true);
@@ -1496,6 +1506,7 @@ public void CreateRocket(int iSpawnerEntity, int iSpawnerClass, int iTeam)
 			// Done
 			g_iRocketCount++;
 			g_iRocketsFired++;
+			g_fLastSpawnTime = GetGameTime();
 			g_fNextSpawnTime = GetGameTime() + g_fSpawnersInterval[iSpawnerClass];
 			g_bRocketIsNuke[iIndex] = false;
 			
@@ -1695,6 +1706,7 @@ void HomingRocketThink(int iIndex)
 		g_fRocketLastDeflectionTime[iIndex] = GetGameTime();
 		g_fRocketSpeed[iIndex] = CalculateRocketSpeed(iClass, fModifier);
 		g_iRocketSpeed = RoundFloat(g_fRocketSpeed[iIndex] * 0.042614);
+		g_bPreventingDelay = false;
 		
 		SetEntDataFloat(iEntity, FindSendPropInfo("CTFProjectile_Rocket", "m_iDeflected") + 4, CalculateRocketDamage(iClass, fModifier), true);
 		if (TestFlags(iFlags, RocketFlag_ElevateOnDeflect))g_iRocketFlags[iIndex] |= RocketFlag_Elevating;
@@ -1741,6 +1753,11 @@ void HomingRocketThink(int iIndex)
 			g_bRocketIsNuke[iIndex] = true;
 			EmitRocketSound(RocketSound_Beep, iClass, iEntity, iTarget, iFlags);
 			g_fRocketLastBeepTime[iIndex] = GetGameTime();
+		}
+		
+		if (GetConVarBool(g_hCvarDelayPrevention))
+		{
+			checkRoundDelays(iIndex);
 		}
 	}
 	
@@ -2991,6 +3008,28 @@ void checkStolenRocket(int clientId, int entId)
 			PrintToChat(clientId, "\x03You have been slain for stealing rockets.");
 			PrintToChatAll("\x03%N was slain for stealing rockets.", clientId);
 		}
+	}
+}
+
+void checkRoundDelays(int entId)
+{
+	int iEntity = EntRefToEntIndex(g_iRocketEntity[entId]);
+	int iTarget = EntRefToEntIndex(g_iRocketTarget[entId]);
+	float timeToCheck;
+	if (g_iRocketDeflections[entId] == 0)
+		timeToCheck = g_fLastSpawnTime;
+	else
+		timeToCheck = g_fRocketLastDeflectionTime[entId];
+	
+	if (iTarget != INVALID_ENT_REFERENCE && (GetGameTime() - timeToCheck) >= GetConVarFloat(g_hCvarDelayPreventionTime))
+	{
+		g_fRocketSpeed[entId] += GetConVarFloat(g_hCvarDelayPreventionSpeedup);
+		if (!g_bPreventingDelay)
+		{
+			PrintToChatAll("\x03%N is delaying, the rocket will now speed up.", iTarget);
+			EmitSoundToAll(SOUND_DEFAULT_SPEEDUPALERT, iEntity, SNDCHAN_AUTO, SNDLEVEL_GUNFIRE);
+		}
+		g_bPreventingDelay = true;
 	}
 }
 
