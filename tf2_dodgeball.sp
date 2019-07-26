@@ -1536,6 +1536,17 @@ public void OnEntityDestroyed(int entity)
 	
 	if (entity == g_op_rocket && g_bEnabled == true && IsValidEntity(g_observer) && IsValidEntity(g_op_rocket))
 	{
+		int rocketIndex = FindRocketByEntity(entity);
+		int iClass = g_iRocketClass[rocketIndex];
+		int iTarget = EntRefToEntIndex(g_iRocketTarget[iIndex]);
+		float fSpeed = g_fRocketSpeed[rocketIndex];
+		int iDeflections = g_iRocketDeflections[rocketIndex];
+		CPrintToChatAll("\x05The rocket exploded\01 while travelling \x05%i\01 mph!", g_iRocketSpeed);
+		if ((g_iRocketFlags[rocketIndex] & RocketFlag_OnExplodeCmd) && !(g_iRocketFlags[rocketIndex] & RocketFlag_Exploded))
+		{
+			ExecuteCommands(g_hRocketClassCmdsOnExplode[iClass], iClass, entity, entity, iTarget, g_iLastDeadClient, fSpeed, iDeflections);
+			g_iRocketFlags[rocketIndex] |= RocketFlag_Exploded;
+		}
 		SetVariantString("");
 		AcceptEntityInput(g_observer, "ClearParent");
 		g_op_rocket = -1;
