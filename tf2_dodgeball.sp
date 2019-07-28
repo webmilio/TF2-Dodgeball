@@ -153,6 +153,7 @@ Handle g_hCvarStealPreventionNumber;
 // -----<<< Gameplay >>>-----
 //int g_stolen[MAXPLAYERS + 1];
 bool g_bEnabled; // Is the plugin enabled?
+bool g_bMapIsTFDB; // Idea taken from SirDigby
 bool g_bRoundStarted; // Has the round started?
 int g_iRoundCount; // Current round count since map start
 int g_iRocketsFired; // No. of rockets fired since round start
@@ -325,10 +326,19 @@ public void OnPluginStart()
 ** -------------------------------------------------------------------------- */
 public void OnConfigsExecuted()
 {
-	if (GetConVarBool(g_hCvarEnabled) && IsDodgeBallMap())
+	if (GetConVarBool(g_hCvarEnabled) && g_bMapIsTFDB)
 	{
 		EnableDodgeBall();
 	}
+}
+
+/* OnMapStart()
+**
+** When the map starts, check if the map is TFDB;
+** -------------------------------------------------------------------------- */
+public void OnMapStart()
+{
+	g_bMapIsTFDB = IsDodgeBallMap();
 }
 
 /* OnMapEnd()
@@ -809,6 +819,9 @@ void DisableDodgeBall()
 
 public void OnClientPutInServer(int clientId)
 {
+	if(!g_bMapIsTFDB)
+		return;
+
 	if (GetConVarBool(g_hCvarAirBlastCommandEnabled))
 	{
 		firstJoined[clientId] = true;
@@ -822,6 +835,9 @@ public void OnClientPutInServer(int clientId)
 
 public void OnClientDisconnect(int client)
 {
+	if(!g_bMapIsTFDB)
+		return;
+
 	if (GetConVarBool(g_hCvarPreventTauntKillEnabled))
 	{
 		SDKUnhook(client, SDKHook_OnTakeDamage, TauntCheck);
@@ -841,6 +857,9 @@ public void OnClientDisconnect(int client)
 ** -------------------------------------------------------------------------- */
 public Action Event_ObjectDeflected(Handle event, const char[] name, bool dontBroadcast)
 {
+	if(!g_bMapIsTFDB)
+		return;
+
 	if (GetConVarBool(g_hCvarAirBlastCommandEnabled))
 	{
 		int object1 = GetEventInt(event, "object_entindex");
@@ -871,6 +890,9 @@ public Action Event_ObjectDeflected(Handle event, const char[] name, bool dontBr
 ** -------------------------------------------------------------------------- */
 public Action OnRoundStart(Handle hEvent, char[] strEventName, bool bDontBroadcast)
 {
+	if(!g_bMapIsTFDB)
+		return;
+
 	if (GetConVarBool(g_hCvarStealPrevention))
 	{
 		for (int i = 0; i <= MaxClients; i++)
@@ -900,7 +922,7 @@ public Action OnRoundStart(Handle hEvent, char[] strEventName, bool bDontBroadca
 ** -------------------------------------------------------------------------- */
 public Action OnSetupFinished(Handle hEvent, char[] strEventName, bool bDontBroadcast)
 {
-	if ((g_bEnabled == true) && (BothTeamsPlaying() == true))
+	if ((g_bEnabled == true && g_bMapIsTFDB) && (BothTeamsPlaying() == true))
 	{
 		PopulateSpawnPoints();
 
@@ -928,6 +950,9 @@ public Action OnSetupFinished(Handle hEvent, char[] strEventName, bool bDontBroa
 ** -------------------------------------------------------------------------- */
 public Action OnRoundEnd(Handle hEvent, char[] strEventName, bool bDontBroadcast)
 {
+	if(!g_bMapIsTFDB)
+		return;
+
 	if (g_hTimerHud != INVALID_HANDLE)
 	{
 		KillTimer(g_hTimerHud);
@@ -974,6 +999,9 @@ public Action OnRoundEnd(Handle hEvent, char[] strEventName, bool bDontBroadcast
 
 public Action Command_ToggleAirblast(int clientId, int args)
 {
+	if(!g_bMapIsTFDB)
+		return Plugin_Handled;
+
 	if (GetConVarBool(g_hCvarAirBlastCommandEnabled))
 	{
 		char arg[128];
@@ -1032,6 +1060,9 @@ public Action Command_ToggleAirblast(int clientId, int args)
 ** -------------------------------------------------------------------------- */
 public Action OnPlayerSpawn(Handle hEvent, char[] strEventName, bool bDontBroadcast)
 {
+	if(!g_bMapIsTFDB)
+		return;
+
 	int iClient = GetClientOfUserId(GetEventInt(hEvent, "userid"));
 	int clientId = GetClientOfUserId(GetEventInt(hEvent, "userid"));
 	//g_stolen[iClient] = 0;
@@ -1076,6 +1107,9 @@ public Action OnPlayerSpawn(Handle hEvent, char[] strEventName, bool bDontBroadc
 ** -------------------------------------------------------------------------- */
 public Action OnPlayerDeath(Handle hEvent, char[] strEventName, bool bDontBroadcast)
 {
+	if(!g_bMapIsTFDB)
+		return;
+
 	if (g_bRoundStarted == false)
 	{
 		return;
@@ -1149,6 +1183,9 @@ public Action OnPlayerDeath(Handle hEvent, char[] strEventName, bool bDontBroadc
 ** -------------------------------------------------------------------------- */
 public Action OnPlayerInventory(Handle hEvent, char[] strEventName, bool bDontBroadcast)
 {
+	if(!g_bMapIsTFDB)
+		return;
+
 	int iClient = GetClientOfUserId(GetEventInt(hEvent, "userid"));
 	if (!IsValidClient(iClient))return;
 
@@ -1165,7 +1202,7 @@ public Action OnPlayerInventory(Handle hEvent, char[] strEventName, bool bDontBr
 ** -------------------------------------------------------------------------- */
 public Action OnPlayerRunCmd(int iClient, int &iButtons, int &iImpulse, float fVelocity[3], float fAngles[3], int &iWeapon)
 {
-	if (g_bEnabled == true)iButtons &= ~IN_ATTACK;
+	if (g_bEnabled == true && g_bMapIsTFDB)iButtons &= ~IN_ATTACK;
 	return Plugin_Continue;
 }
 
@@ -1175,6 +1212,9 @@ public Action OnPlayerRunCmd(int iClient, int &iButtons, int &iImpulse, float fV
 ** -------------------------------------------------------------------------- */
 public Action OnBroadcastAudio(Handle hEvent, char[] strEventName, bool bDontBroadcast)
 {
+	if(!g_bMapIsTFDB)
+		return Plugin_Continue;
+
 	if (g_bMusicEnabled == true)
 	{
 		char strSound[PLATFORM_MAX_PATH];
@@ -1233,6 +1273,9 @@ public Action OnBroadcastAudio(Handle hEvent, char[] strEventName, bool bDontBro
 ** -------------------------------------------------------------------------- */
 public Action OnDodgeBallGameFrame(Handle hTimer, any Data)
 {
+	if(!g_bMapIsTFDB)
+		return;
+
 	// Only if both teams are playing
 	if (BothTeamsPlaying() == false)return;
 
@@ -1292,7 +1335,7 @@ public Action OnDodgeBallGameFrame(Handle hTimer, any Data)
 
 public Action Timer_HudSpeed(Handle hTimer)
 {
-	if (GetConVarBool(g_hCvarSpeedo))
+	if (GetConVarBool(g_hCvarSpeedo) && g_bMapIsTFDB)
 	{
 		SetHudTextParams(-1.0, 0.9, 1.1, 255, 255, 255, 255);
 		for (int iClient = 1; iClient <= MaxClients; iClient++)
@@ -1404,6 +1447,9 @@ public void CreateRocket(int iSpawnerEntity, int iSpawnerClass, int iTeam)
 
 public void OnEntityDestroyed(int entity)
 {
+	if(!g_bMapIsTFDB)
+		return;
+
 	if (entity == -1)
 	{
 		return;
@@ -1938,11 +1984,20 @@ void RegisterCommands()
 
 public Action CmdResize(int iIndex)
 {
+	if(!g_bEnabled || !g_bMapIsTFDB)
+	{
+		// You should add notify, if it's not there.
+		PrintToServer("Cannot use command. Dodgeball is disabled.");
+		return Plugin_Handled;
+	}
+
 	int iEntity = EntRefToEntIndex(g_iRocketEntity[iIndex]);
 	if (iEntity && IsValidEntity(iEntity) && g_bRocketIsNuke[iEntity])
 	{
 		SetEntPropFloat(iEntity, Prop_Send, "m_flModelScale", (4.0));
 	}
+
+	return Plugin_Handled;
 }
 
 /* CmdExplosion()
@@ -1951,6 +2006,12 @@ public Action CmdResize(int iIndex)
 ** -------------------------------------------------------------------------- */
 public Action CmdExplosion(int iArgs)
 {
+	if(!g_bEnabled || !g_bMapIsTFDB)
+	{
+		PrintToServer("Cannot use command. Dodgeball is disabled.");
+		return Plugin_Handled;
+	}
+
 	if (iArgs == 1)
 	{
 		char strBuffer[8], iClient;
@@ -2001,6 +2062,12 @@ public Action CmdExplosion(int iArgs)
 ** -------------------------------------------------------------------------- */
 public Action CmdShockwave(int iArgs)
 {
+	if(!g_bEnabled || !g_bMapIsTFDB)
+	{
+		PrintToServer("Cannot use command. Dodgeball is disabled.");
+		return Plugin_Handled;
+	}
+
 	if (iArgs == 5)
 	{
 		char strBuffer[8];
@@ -2735,14 +2802,16 @@ public void tf2dodgeball_hooks(Handle convar, const char[] oldValue, const char[
 			}
 		}
 	}
-	g_config_iMaxBounces = StringToInt(newValue);
+
+	if (convar == g_hMaxBouncesConVar)
+		g_config_iMaxBounces = StringToInt(newValue);
 }
 
 // Asherkins RocketBounce
 
 public void OnEntityCreated(int entity, const char[] classname)
 {
-	if (!StrEqual(classname, "tf_projectile_rocket", false))
+	if (!g_bMapIsTFDB && !StrEqual(classname, "tf_projectile_rocket", false))
 		return;
 
 	if (StrEqual(classname, "tf_projectile_rocket") || StrEqual(classname, "tf_projectile_sentryrocket"))
@@ -2844,6 +2913,9 @@ void preventAirblast(int clientId, bool prevent)
 
 public Action TauntCheck(int victim, int &attacker, int &inflictor, float &damage, int &damagetype, int &weapon, float damageForce[3], float damagePosition[3], int damagecustom)
 {
+	if (!g_bMapIsTFDB)
+    return Plugin_Continue;
+
 	switch (damagecustom)
 	{
 		case TF_CUSTOM_TAUNT_ARMAGEDDON:
