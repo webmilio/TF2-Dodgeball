@@ -30,5 +30,5 @@ A wiki will be setup detailing the config for the plugin.
 - ClassicGuzzi - Obeserver Point
 - BloodyNightmare & Mitchell - For original version of AirblastPrevention
 - Powerlord - Original Pyrovision for all plugin
-- lizzy - Extra Admin Menu options
+- lizzy - Extra Admin Menu options and Delay Prevention
 
