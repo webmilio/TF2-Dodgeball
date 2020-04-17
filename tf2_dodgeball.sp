@@ -3173,6 +3173,7 @@ void SetMainRocketClass(int Index, int client = 0)
 	strcopy(g_strSavedClassName, sizeof(g_strSavedClassName), g_strRocketClassLongName[iClass]);
 	
 	CPrintToChatAll("\x05%N\01 changed the rocket class to \x05%s\01.", client, g_strRocketClassLongName[iClass]);
+}
 
 float CalculateSpeed(float speed)
 {
