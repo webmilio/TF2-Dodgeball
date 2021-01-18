@@ -21,7 +21,7 @@
 // *********************************************************************************
 // ---- Plugin-related constants ---------------------------------------------------
 #define PLUGIN_NAME				"[TF2] Yet Another Dodgeball Plugin"
-#define PLUGIN_AUTHOR			"Damizean, Edited by blood and lizzy"
+#define PLUGIN_AUTHOR			"Damizean, Edited by blood and lizzy, Updated by Webmilio"
 #define PLUGIN_VERSION			"1.4.2"
 #define PLUGIN_CONTACT			"https://savita-gaming.com"
 
@@ -817,7 +817,8 @@ bool IsDodgeBallMap()
 {
 	char strMap[64];
 	GetCurrentMap(strMap, sizeof(strMap));
-	return StrContains(strMap, "tfdb_", false) == 0;
+	
+	return StrContains(strMap, "tfdb_", false) == 0 || StrContains(strMap, "workshop/tfdb_", false) == 0;
 }
 
 /* EnableDodgeBall()
