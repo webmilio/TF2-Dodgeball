@@ -31,4 +31,5 @@ A wiki will be setup detailing the config for the plugin.
 - BloodyNightmare & Mitchell - For original version of AirblastPrevention
 - Powerlord - Original Pyrovision for all plugin
 - lizzy - Extra Admin Menu options and Delay Prevention
+- Webmilio - Updating the plugin and fixing some bugs
 
