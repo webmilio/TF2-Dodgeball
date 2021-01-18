@@ -21,7 +21,7 @@
 // *********************************************************************************
 // ---- Plugin-related constants ---------------------------------------------------
 #define PLUGIN_NAME				"[TF2] Yet Another Dodgeball Plugin"
-#define PLUGIN_AUTHOR			"Damizean, Edited by blood and lizzy, Updated by Webmilio"
+#define PLUGIN_AUTHOR			"Damizean, Edited by blood and lizzy"
 #define PLUGIN_VERSION			"1.4.2"
 #define PLUGIN_CONTACT			"https://savita-gaming.com"
 
@@ -374,6 +374,9 @@ public Action Command_DodgeballAdminMenu(int client, int args)
 
 	menu.AddItem("2", "Main Rocket Class");
 	menu.AddItem("3", "Refresh Configurations");
+
+	menu.AddItem("4", "Destroy Rockets");
+	menu.AddItem("5", "Spawn Rocket");
 	
 	menu.ExitButton = true;
 	menu.Display(client, MENU_TIME_FOREVER);
@@ -430,6 +433,29 @@ public int DodgeballAdmin_Handler(Menu menu, MenuAction action, int param1, int 
 					ParseConfigurations();
 					ParseConfigurations(strMapFile);
 					CPrintToChatAll("\x05%N\01 refreshed the \x05dodgeball configs\01.", param1);
+				}
+				case 4:
+				{
+					DestroyRockets();
+				}
+				case 5:
+				{
+					if (g_iLastDeadTeam == view_as<int>(TFTeam_Red))
+					{
+						int iSpawnerEntity = g_iSpawnPointsRedEntity[g_iCurrentRedSpawn];
+						int iSpawnerClass = g_iSpawnPointsRedClass[g_iCurrentRedSpawn];
+						
+						CreateRocket(iSpawnerEntity, iSpawnerClass, view_as<int>(TFTeam_Red));
+						g_iCurrentRedSpawn = (g_iCurrentRedSpawn + 1) % g_iSpawnPointsRedCount;
+					}
+					else
+					{
+						int iSpawnerEntity = g_iSpawnPointsBluEntity[g_iCurrentBluSpawn];
+						int iSpawnerClass = g_iSpawnPointsBluClass[g_iCurrentBluSpawn];
+						
+						CreateRocket(iSpawnerEntity, iSpawnerClass, view_as<int>(TFTeam_Blue));
+						g_iCurrentBluSpawn = (g_iCurrentBluSpawn + 1) % g_iSpawnPointsBluCount;
+					}
 				}
 			}
 		}
@@ -1535,6 +1561,7 @@ public void CreateRocket(int iSpawnerEntity, int iSpawnerClass, int iTeam)
 			// Setup rocket structure with the newly created entity.
 			int iTargetTeam = (TestFlags(iFlags, RocketFlag_IsNeutral)) ? 0 : GetAnalogueTeam(iTeam);
 			int iTarget = SelectTarget(iTargetTeam);
+			
 			float fModifier = CalculateModifier(iClass, 0);
 			g_bRocketIsValid[iIndex] = true;
 			g_iRocketFlags[iIndex] = iFlags;
@@ -2690,8 +2717,11 @@ stock int SelectTarget(int iTeam, int iRocket = -1)
 	for (int iClient = 1; iClient <= MaxClients; iClient++)
 	{
 		// If the client isn't connected, skip.
-		if (!IsValidClient(iClient, true))continue;
-		if (iTeam && GetClientTeam(iClient) != iTeam)continue;
+		if (!IsValidClient(iClient, true))
+			continue;
+		
+		if (iTeam && GetClientTeam(iClient) != iTeam)
+			continue;
 
 		// Determine if this client should be the target.
 		float fNewWeight = GetURandomFloatRange(0.0, 100.0);
@@ -2823,6 +2853,7 @@ stock void ShowHiddenMOTDPanel(int iClient, char[] strTitle, char[] strMsg, char
 	KvSetString(hPanel, "type", strType);
 	KvSetString(hPanel, "msg", strMsg);
 	ShowVGUIPanel(iClient, "info", hPanel, false);
+	
 	CloseHandle(hPanel);
 }
 
@@ -2835,7 +2866,9 @@ stock void PrecacheSoundEx(char[] strFileName, bool bPreload = false, bool bAddT
 	char strFinalPath[PLATFORM_MAX_PATH];
 	Format(strFinalPath, sizeof(strFinalPath), "sound/%s", strFileName);
 	PrecacheSound(strFileName, bPreload);
-	if (bAddToDownloadTable == true)AddFileToDownloadsTable(strFinalPath);
+
+	if (bAddToDownloadTable == true)
+		AddFileToDownloadsTable(strFinalPath);
 }
 
 /* PrecacheModelEx()
@@ -2981,6 +3014,9 @@ public void OnEntityCreated(int entity, const char[] classname)
 		}
 	}
 
+	if (entity < 0)
+		return;
+	
 	g_nBounces[entity] = 0;
 	SDKHook(entity, SDKHook_StartTouch, OnStartTouch);
 }
